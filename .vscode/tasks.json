@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "make",
+      "args": ["-j8"],
+      "group": "build",
+      "problemMatcher": "$msCompile",
+      "options": {
+        "cwd": "${workspaceFolder}\\src"
+      }
+    },
+    {
+      "label": "build-test",
+      "type": "shell",
+      "command": "make",
+      "args": ["compile_tests", "-j8"],
+      "group": "build",
+      "problemMatcher": "$msCompile",
+      "options": {
+        "cwd": "${workspaceFolder}\\src"
+      }
+    },
+    {
+      "label": "build-test-ui",
+      "type": "shell",
+      "command": "make",
+      "args": ["compile_tests", "-j8"],
+      "group": "build",
+      "problemMatcher": "$msCompile",
+      "options": {
+        "cwd": "${workspaceFolder}\\src"
+      }
+    },
+    {
+      "label": "debug",
+      "type": "shell",
+      "command": "gdb",
+      "group": "build",
+      "problemMatcher": "$msCompile",
+      "options": {
+        "cwd": "${workspaceFolder}\\src"
+      }
+    }
+  ]
+}

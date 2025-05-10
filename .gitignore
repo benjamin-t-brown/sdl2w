@@ -1,0 +1,9 @@
+sdl2w/
+.cache
+*.o
+*.d
+*.a
+*.exe
+*.log
+compile_commands.json
+Anims

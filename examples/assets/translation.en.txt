@@ -1,0 +1,5 @@
+[Last key pressed: ] {Last key pressed: }
+[Press Left/Right or X to punch!] {Press Left/Right or X to punch!}
+[Press Shift Alt or Ctrl to play sounds!] {Press Shift Alt or Ctrl to play sounds!}
+[Press Space to start/stop music!] {Press Space to start/stop music!}
+[Welcome to the SDL2W Example!] {Welcome to the SDL2W Example!}

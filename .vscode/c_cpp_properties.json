@@ -1,0 +1,29 @@
+{
+  "configurations": [
+    {
+      "name": "Win32",
+      "includePath": ["${workspaceFolder}\\src"],
+      "defines": [
+        "_DEBUG",
+        "UNICODE",
+        "_UNICODE",
+        "__LITTLE_ENDIAN__",
+        "NET_ENABLE_ENET"
+      ],
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "windows-gcc-x64",
+      "compilerArgs": [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-std=c++",
+        "-Werror",
+        "-O0",
+        "-I ./src"
+      ],
+      "compilerPath": "g++"
+    }
+  ],
+  "version": 4
+}

@@ -1,0 +1,33 @@
+# Pic,<alias>,<path from executable>
+Pic,ken,assets/ken_example.png
+# Sprites,<pic name>,<num sprites>,<sprite size x>,<sprite size y>
+Sprites,ken,10,100,100
+
+Pic,fractal,assets/fractal.png
+Sprites,fractal,1,64,64
+
+# Anim,<alias>,loop|noloop
+# <sprite name> <ms> ...
+# EndAnim
+Anim,ken_walk,loop
+ken_0 100
+ken_0 100
+ken_1 100
+ken_2 100
+ken_3 100
+ken_4 100
+EndAnim
+
+Anim,ken_punch,noloop
+ken_6 200
+ken_7 50
+ken_8 150
+ken_7 100
+ken_6 100
+EndAnim
+
+# Sound/Music,<alias>,<path>
+Sound,test1,assets/test1.wav
+Sound,test2,assets/test2.wav
+Sound,test3,assets/test3.wav
+Music,song_of_time,assets/song_of_time.wav
