@@ -6,7 +6,6 @@ sdl2w/
 *.exe
 *.log
 compile_commands.json
-Anims
 *.data
 *.wasm
 SDL2W_EXAMPLE.js
