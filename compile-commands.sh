@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cd src
-compiledb make
+compiledb make all

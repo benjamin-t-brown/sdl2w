@@ -3,11 +3,15 @@
 #include "Draw.h"
 #include "Logger.h"
 #include <filesystem>
+#include <fstream> // Added fstream include for std::ifstream
+#include <map>     // Added map include
+#include <sstream> // Added sstream include for std::stringstream
 #include <stdexcept>
 #include <vector>
-#include <map> // Added map include
-#include <sstream> // Added sstream include for std::stringstream
-#include <fstream> // Added fstream include for std::ifstream
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #if defined(MIYOOA30) || defined(MIYOOMINI)
 #include <SDL.h>
@@ -24,24 +28,24 @@
 namespace sdl2w {
 
 std::string slice(const std::string& str, int start, int end) {
-    const int len = static_cast<int>(str.length());
+  const int len = static_cast<int>(str.length());
 
-    // Normalize start index to be like JavaScript's slice
-    int actualStart = start < 0 ? std::max(len + start, 0) : std::min(start, len);
+  // Normalize start index to be like JavaScript's slice
+  int actualStart = start < 0 ? std::max(len + start, 0) : std::min(start, len);
 
-    // Normalize end index to be like JavaScript's slice
-    int actualEnd;
-    if (end < 0) {
-        actualEnd = std::max(len + end, 0);
-    } else {
-        actualEnd = std::min(end, len);
-    }
+  // Normalize end index to be like JavaScript's slice
+  int actualEnd;
+  if (end < 0) {
+    actualEnd = std::max(len + end, 0);
+  } else {
+    actualEnd = std::min(end, len);
+  }
 
-    if (actualStart >= actualEnd) {
-        return std::string(); // Return empty string if range is invalid or empty
-    }
+  if (actualStart >= actualEnd) {
+    return std::string(); // Return empty string if range is invalid or empty
+  }
 
-    return str.substr(actualStart, actualEnd - actualStart);
+  return str.substr(actualStart, actualEnd - actualStart);
 }
 
 std::string trim(const std::string& str) {
@@ -58,20 +62,22 @@ std::string trim(const std::string& str) {
   return str.substr(strBegin, strEnd - strBegin + 1);
 }
 
-void split(const std::string& str,
-           const std::string& delimiter, // Renamed 'token' to 'delimiter' for clarity
-           std::vector<std::string>& out) {
+void split(
+    const std::string& str,
+    const std::string& delimiter, // Renamed 'token' to 'delimiter' for clarity
+    std::vector<std::string>& out) {
   // Note: JS split returns a new array. This function appends to 'out'.
   // If 'out' should be cleared first, add out.clear(); here.
 
   if (delimiter.empty()) {
     // JS behavior: "abc".split("") -> ["a", "b", "c"]
     // JS behavior: "".split("") -> []
-    // This implementation will produce [""] for "".split(""), and ["a","b","c"] for "abc".split("")
-    // To strictly match JS "".split("") -> [], handle str.empty() case here:
+    // This implementation will produce [""] for "".split(""), and ["a","b","c"]
+    // for "abc".split("") To strictly match JS "".split("") -> [], handle
+    // str.empty() case here:
     if (str.empty()) {
-        out.clear();
-        return; 
+      out.clear();
+      return;
     }
     for (char c : str) {
       out.emplace_back(1, c);
@@ -86,7 +92,8 @@ void split(const std::string& str,
     out.push_back(str.substr(lastPos, findPos - lastPos));
     lastPos = findPos + delimiter.length();
   }
-  // Add the last part of the string (or the whole string if delimiter not found)
+  // Add the last part of the string (or the whole string if delimiter not
+  // found)
   out.push_back(str.substr(lastPos));
 }
 
@@ -386,139 +393,169 @@ void AssetLoader::loadSoundAssetsFromFile(const std::string& path) {
 }
 
 void AssetLoader::loadAssetFile(const std::string& path) {
-    LOG_LINE(DEBUG) << "[sdl2w] Loading from asset file "
+  LOG_LINE(DEBUG) << "[sdl2w] Loading asset file "
+                  << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+  std::ifstream file(std::string(ASSETS_PREFIX) + path);
+  if (!file.is_open()) {
+    LOG_LINE(ERROR) << "[sdl2w] Failed to open file: "
                     << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
-    std::ifstream file(std::string(ASSETS_PREFIX) + path);
-    if (!file.is_open()) {
-        LOG_LINE(ERROR) << "[sdl2w] Failed to open file: "
-                        << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
-        return;
-    }
+    return;
+  }
 
-    std::string line;
-    std::map<std::string, int> nextSpriteIndexForPicture; // Tracks the next sprite index for a given picture alias
+  std::string line;
+  std::map<std::string, int>
+      nextSpriteIndexForPicture; // Tracks the next sprite index for a given
+                                 // picture alias
 
-    std::string currentAnimationName;
-    bool parsingAnimationFrames = false;
+  std::string currentAnimationName;
+  bool parsingAnimationFrames = false;
 
-    try {
-        while (std::getline(file, line)) {
-            line = trim(line);
-            if (line.empty() || line[0] == '#') { // Skip comments and empty lines
-                continue;
-            }
+  try {
+    while (std::getline(file, line)) {
+      line = trim(line);
+      if (line.empty() || line[0] == '#') { // Skip comments and empty lines
+        continue;
+      }
 
-            if (parsingAnimationFrames) {
-                if (line == "EndAnim") {
-                    parsingAnimationFrames = false;
-                    currentAnimationName = "";
-                    continue;
-                }
-                // Parse animation frame line: <sprite name> <ms>
-                std::stringstream ss(line);
-                std::string spriteNameStr;
-                std::string framesStr;
-                // Use std::ws to consume leading whitespace before spriteNameStr
-                ss >> std::ws >> spriteNameStr; // Read first word (sprite name)
-                ss >> std::ws >> framesStr; // Read second word (frames)
-
-
-                if (!spriteNameStr.empty() && !framesStr.empty() && !currentAnimationName.empty()) {
-                    try {
-                        int frames = std::stoi(framesStr);
-                        AnimationDefinition& animDef = store.getAnimationDefinition(currentAnimationName);
-                        animDef.addSprite(spriteNameStr, frames);
-                    } catch (const std::exception& e) {
-                        LOG_LINE(ERROR) << "[sdl2w] Failed to parse animation frame for " << currentAnimationName
-                                        << ": '" << line << "' - " << e.what() << Logger::endl;
-                    }
-                } else {
-                     LOG_LINE(WARN) << "[sdl2w] Malformed or incomplete animation frame line: '" << line << "' for animation '" << currentAnimationName << "'" << Logger::endl;
-                }
-                continue; 
-            }
-
-            std::vector<std::string> tokens;
-            split(line, ",", tokens); 
-
-            if (tokens.empty()) {
-                continue;
-            }
-
-            const std::string& command = trim(tokens[0]); // Trim the command itself
-
-            if (command == "Pic") {
-                if (tokens.size() >= 3) {
-                    std::string alias = trim(tokens[1]);
-                    std::string picPath = trim(tokens[2]);
-                    loadPicture(alias, picPath); // Path is from executable as per assets.txt spec
-                    nextSpriteIndexForPicture[alias] = 0; // Initialize sprite counter for this picture
-                } else {
-                    LOG_LINE(WARN) << "[sdl2w] Malformed Pic asset specified: " << line << Logger::endl;
-                }
-            } else if (command == "Sprites") {
-                if (tokens.size() >= 5) {
-                    std::string picName = trim(tokens[1]);
-                    try {
-                        int numSprites = std::stoi(trim(tokens[2]));
-                        int spriteWidth = std::stoi(trim(tokens[3]));
-                        int spriteHeight = std::stoi(trim(tokens[4]));
-
-                        if (nextSpriteIndexForPicture.find(picName) == nextSpriteIndexForPicture.end()) {
-                            LOG_LINE(WARN) << "[sdl2w] Sprites command for picture '" << picName 
-                                              << "' encountered without a preceding 'Pic' command for it. Assuming sprite index starts at 0." << Logger::endl;
-                            nextSpriteIndexForPicture[picName] = 0;
-                        }
-
-                        int startIndex = nextSpriteIndexForPicture[picName];
-                        // The spriteBaseName for loadSpriteSheet should be picName, so sprites are picName_0, picName_1 etc.
-                        loadSpriteSheet(picName, picName, startIndex, startIndex + numSprites, spriteWidth, spriteHeight);
-                        nextSpriteIndexForPicture[picName] = startIndex + numSprites;
-                    } catch (const std::invalid_argument& ia) {
-                        LOG_LINE(ERROR) << "[sdl2w] Invalid number in Sprites asset specified: " << line << " - " << ia.what() << Logger::endl;
-                    } catch (const std::out_of_range& oor) {
-                        LOG_LINE(ERROR) << "[sdl2w] Number out of range in Sprites asset specified: " << line << " - " << oor.what() << Logger::endl;
-                    }
-                } else {
-                    LOG_LINE(WARN) << "[sdl2w] Malformed Sprites asset specified: " << line << Logger::endl;
-                }
-            } else if (command == "Anim") {
-                if (tokens.size() >= 3) {
-                    currentAnimationName = trim(tokens[1]);
-                    std::string loopStr = trim(tokens[2]);
-                    bool loop = (loopStr == "loop");
-                    store.storeAnimationDefinition(currentAnimationName, loop);
-                    parsingAnimationFrames = true; 
-                } else {
-                    LOG_LINE(WARN) << "[sdl2w] Malformed Anim asset specified: " << line << Logger::endl;
-                }
-            } else if (command == "Sound") {
-                if (tokens.size() >= 3) {
-                    std::string alias = trim(tokens[1]);
-                    std::string soundPath = trim(tokens[2]);
-                    store.storeSound(alias, soundPath);
-                } else {
-                    LOG_LINE(WARN) << "[sdl2w] Malformed Sound asset specified: " << line << Logger::endl;
-                }
-            } else if (command == "Music") {
-                if (tokens.size() >= 3) {
-                    std::string alias = trim(tokens[1]);
-                    std::string musicPath = trim(tokens[2]);
-                    store.storeMusic(alias, musicPath);
-                } else {
-                    LOG_LINE(WARN) << "[sdl2w] Malformed Music asset specified: " << line << Logger::endl;
-                }
-            } else {
-                LOG_LINE(WARN) << "[sdl2w] Unknown command in asset file: '" << command << "' in line: '" << line << "'" << Logger::endl;
-            }
+      if (parsingAnimationFrames) {
+        if (line == "EndAnim") {
+          parsingAnimationFrames = false;
+          currentAnimationName = "";
+          continue;
         }
-        file.close();
-    } catch (const std::exception& e) {
-        LOG_LINE(ERROR) << "[sdl2w] Exception while parsing asset file '" << path << "': " << e.what() << Logger::endl;
-        if (file.is_open()) {
-            file.close();
+        // Parse animation frame line: <sprite name> <ms>
+        std::stringstream ss(line);
+        std::string spriteNameStr;
+        std::string framesStr;
+        // Use std::ws to consume leading whitespace before spriteNameStr
+        ss >> std::ws >> spriteNameStr; // Read first word (sprite name)
+        ss >> std::ws >> framesStr;     // Read second word (frames)
+
+        if (!spriteNameStr.empty() && !framesStr.empty() &&
+            !currentAnimationName.empty()) {
+          try {
+            int frames = std::stoi(framesStr);
+            AnimationDefinition& animDef =
+                store.getAnimationDefinition(currentAnimationName);
+            animDef.addSprite(spriteNameStr, frames);
+          } catch (const std::exception& e) {
+            LOG_LINE(ERROR) << "[sdl2w] Failed to parse animation frame for "
+                            << currentAnimationName << ": '" << line << "' - "
+                            << e.what() << Logger::endl;
+          }
+        } else {
+          LOG_LINE(WARN)
+              << "[sdl2w] Malformed or incomplete animation frame line: '"
+              << line << "' for animation '" << currentAnimationName << "'"
+              << Logger::endl;
         }
+        continue;
+      }
+
+      std::vector<std::string> tokens;
+      split(line, ",", tokens);
+
+      if (tokens.empty()) {
+        continue;
+      }
+
+      const std::string& command = trim(tokens[0]); // Trim the command itself
+
+      if (command == "Pic") {
+        if (tokens.size() >= 3) {
+          std::string alias = trim(tokens[1]);
+          std::string picPath = trim(tokens[2]);
+          loadPicture(
+              alias, picPath); // Path is from executable as per assets.txt spec
+          nextSpriteIndexForPicture[alias] =
+              0; // Initialize sprite counter for this picture
+        } else {
+          LOG_LINE(WARN) << "[sdl2w] Malformed Pic asset specified: " << line
+                         << Logger::endl;
+        }
+      } else if (command == "Sprites") {
+        if (tokens.size() >= 5) {
+          std::string picName = trim(tokens[1]);
+          try {
+            int numSprites = std::stoi(trim(tokens[2]));
+            int spriteWidth = std::stoi(trim(tokens[3]));
+            int spriteHeight = std::stoi(trim(tokens[4]));
+
+            if (nextSpriteIndexForPicture.find(picName) ==
+                nextSpriteIndexForPicture.end()) {
+              LOG_LINE(WARN)
+                  << "[sdl2w] Sprites command for picture '" << picName
+                  << "' encountered without a preceding 'Pic' command for it. "
+                     "Assuming sprite index starts at 0."
+                  << Logger::endl;
+              nextSpriteIndexForPicture[picName] = 0;
+            }
+
+            int startIndex = nextSpriteIndexForPicture[picName];
+            // The spriteBaseName for loadSpriteSheet should be picName, so
+            // sprites are picName_0, picName_1 etc.
+            loadSpriteSheet(picName,
+                            picName,
+                            startIndex,
+                            startIndex + numSprites,
+                            spriteWidth,
+                            spriteHeight);
+            nextSpriteIndexForPicture[picName] = startIndex + numSprites;
+          } catch (const std::invalid_argument& ia) {
+            LOG_LINE(ERROR)
+                << "[sdl2w] Invalid number in Sprites asset specified: " << line
+                << " - " << ia.what() << Logger::endl;
+          } catch (const std::out_of_range& oor) {
+            LOG_LINE(ERROR)
+                << "[sdl2w] Number out of range in Sprites asset specified: "
+                << line << " - " << oor.what() << Logger::endl;
+          }
+        } else {
+          LOG_LINE(WARN) << "[sdl2w] Malformed Sprites asset specified: "
+                         << line << Logger::endl;
+        }
+      } else if (command == "Anim") {
+        if (tokens.size() >= 3) {
+          currentAnimationName = trim(tokens[1]);
+          std::string loopStr = trim(tokens[2]);
+          bool loop = (loopStr == "loop");
+          store.storeAnimationDefinition(currentAnimationName, loop);
+          parsingAnimationFrames = true;
+        } else {
+          LOG_LINE(WARN) << "[sdl2w] Malformed Anim asset specified: " << line
+                         << Logger::endl;
+        }
+      } else if (command == "Sound") {
+        if (tokens.size() >= 3) {
+          std::string alias = trim(tokens[1]);
+          std::string soundPath = trim(tokens[2]);
+          store.storeSound(alias, soundPath);
+        } else {
+          LOG_LINE(WARN) << "[sdl2w] Malformed Sound asset specified: " << line
+                         << Logger::endl;
+        }
+      } else if (command == "Music") {
+        if (tokens.size() >= 3) {
+          std::string alias = trim(tokens[1]);
+          std::string musicPath = trim(tokens[2]);
+          store.storeMusic(alias, musicPath);
+        } else {
+          LOG_LINE(WARN) << "[sdl2w] Malformed Music asset specified: " << line
+                         << Logger::endl;
+        }
+      } else {
+        LOG_LINE(WARN) << "[sdl2w] Unknown command in asset file: '" << command
+                       << "' in line: '" << line << "'" << Logger::endl;
+      }
     }
+    file.close();
+  } catch (const std::exception& e) {
+    LOG_LINE(ERROR) << "[sdl2w] Exception while parsing asset file '" << path
+                    << "': " << e.what() << Logger::endl;
+    if (file.is_open()) {
+      file.close();
+    }
+  }
 }
 
 void AssetLoader::loadAssetsFromFile(AssetFileType type,
@@ -542,8 +579,8 @@ void AssetLoader::loadAssetsFromFile(AssetFileType type,
 std::string loadFileAsString(const std::string& path) {
 #ifdef __EMSCRIPTEN__
   LOG_LINE(DEBUG) << "[sdl2w] Loading file "
-                  << ("/" + INDEXDB_PREFIX + "/" + path) << Logger::endl;
-  std::ifstream file("/" + INDEXDB_PREFIX + "/" + path);
+                  << (std::string(INDEXDB_PREFIX) + path) << Logger::endl;
+  std::ifstream file("/" + std::string(INDEXDB_PREFIX) + path);
 #else
   LOG_LINE(DEBUG) << "[sdl2w] Loading file "
                   << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
@@ -566,8 +603,8 @@ std::string loadFileAsString(const std::string& path) {
 void saveFileAsString(const std::string& path, const std::string& content) {
 #ifdef __EMSCRIPTEN__
   LOG_LINE(DEBUG) << "[sdl2w] Saving file "
-                  << ("/" + INDEXDB_PREFIX + "/" + path) << Logger::endl;
-  std::ofstream file("/" + INDEXDB_PREFIX + "/" + path);
+                  << (std::string(INDEXDB_PREFIX) + path) << Logger::endl;
+  std::ofstream file("/" + std::string(INDEXDB_PREFIX) + path);
 #else
   LOG_LINE(DEBUG) << "[sdl2w] Saving file "
                   << (std::string(ASSETS_PREFIX) + path) << Logger::endl;

@@ -1,5 +1,5 @@
-[Last key pressed: ] {Veni vidi vici: }
-[Press Left/Right or X to punch!] {MISSING!}
-[Press Shift Alt or Ctrl to play sounds!] {MISSING!}
-[Press Space to start/stop music!] {MISSING!}
-[Welcome to the SDL2W Example!] {MISSING!}
+[Last key pressed: ] {Ultimum clavem pressum: }
+[Press Left/Right or X to punch!] {Preme Sinistram/Dextram aut X ut ferias!}
+[Press Shift Alt or Ctrl to play sounds!] {Preme Mutare Alt aut Ctrl ut sonos canas!}
+[Press Space to start/stop music!] {Preme Spatium ut musicam incipias/aut sistas!}
+[Welcome to the SDL2W Example!] {Salve ad Exemplum SDL2W!}

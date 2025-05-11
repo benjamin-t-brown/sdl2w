@@ -7,3 +7,9 @@ sdl2w/
 *.log
 compile_commands.json
 Anims
+*.data
+*.wasm
+SDL2W_EXAMPLE.js
+Anims*
+L10nScanner*
+node_modules

@@ -14,14 +14,16 @@ EMCC_LIBS_CLIENT=\
 -s USE_SDL_MIXER=2\
 -s SDL2_IMAGE_FORMATS='["png"]'\
 -s USE_SDL_TTF=2\
+-s USE_SDL_GFX=2\
 -s ALLOW_MEMORY_GROWTH=1\
 -s SAFE_HEAP=0\
 -s ASSERTIONS=1\
 -s INITIAL_MEMORY=326565888\
 -s ENVIRONMENT=web\
 -s JS_MATH=0\
+-s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR\
+-s NO_DISABLE_EXCEPTION_CATCHING\
 -lidbfs.js\
--sNO_DISABLE_EXCEPTION_CATCHING\
 -L../sdl2w/lib -lsdl2w
 
 EMCC_EXPORTED=\
@@ -66,6 +68,9 @@ all: $(EXE)
 lib:
 	cd ../src && make -j8 all
 
+lib_wasm:
+	cd ../src && make -j8 wasm
+
 clean_lib:
 	cd ../src && make clean
 	rm -rf ../sdl2w
@@ -76,14 +81,10 @@ clean_lib:
 run:
 	./$(EXE)
 
-temp:
+js: lib_wasm
 	mkdir -p .build
-
-js: temp
-	rm -rf dist
 	em++ -I. -std=c++17 $(MAIN_ALL) $(EMCC_LIBS_CLIENT) $(EMCC_EXPORTED) --preload-file assets -o .build/$(EXE).js
-	mkdir -p dist
-	mv -v .build/* ../web
+	mv -v .build/* ../web/public
 	rm -fd .build
 
 files:

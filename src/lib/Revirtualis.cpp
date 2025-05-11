@@ -1,4 +1,4 @@
-#include "revirtualis.h"
+#include "Revirtualis.h"
 #include "L10n.h"
 #include "Logger.h"
 #include <string>
@@ -69,7 +69,7 @@ void renderSplash(sdl2w::Window& window) {
 void showRevirtualisSplash(sdl2w::Window& window, int duration) {
   window.getDraw().setBackgroundColor({16, 30, 41});
 #ifdef __EMSCRIPTEN__
-  renderLoadingScreen(window);
+  renderSplash(window);
 #else
   int t = 0;
   window.startRenderLoop([&]() {

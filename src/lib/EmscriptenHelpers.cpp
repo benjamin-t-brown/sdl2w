@@ -1,11 +1,30 @@
 #include "EmscriptenHelpers.h"
+#include "Logger.h"
+#include "Window.h"
+
 #ifdef __EMSCRIPTEN__
+#include <SDL2/SDL_mixer.h>
 #include <emscripten.h>
 #include <emscripten/html5.h>
-#include <string>
 #endif
 
 namespace emshelpers {
+
+sdl2w::Window* emscriptenWindow = nullptr;
+
+void setEmscriptenWindow(sdl2w::Window* window) {
+  emscriptenWindow = window;
+  sdl2w::Logger().get(sdl2w::DEBUG)
+      << "Set Emscripten window: " << emscriptenWindow << sdl2w::Logger::endl;
+
+#ifdef __EMSCRIPTEN__
+  std::stringstream ss;
+  auto [width, height] = window->getDraw().getRenderSize();
+  ss << "window.Lib.notifyTargetWindowSize(" << width << ", "
+     << height << ")";
+  emscripten_run_script(ss.str().c_str());
+#endif
+}
 
 void notifyGameStarted() {
 #ifdef __EMSCRIPTEN__
@@ -32,15 +51,15 @@ void notifyGameCompleted(bool isVictory) {
 extern "C" {
 EMSCRIPTEN_KEEPALIVE
 void enableSound() {
-  sdl2w::Window::soundEnabled = true;
-  int volumePct = sdl2w::Window::soundPercent;
+  sdl2w::Window::_soundEnabled = true;
+  int volumePct = emshelpers::emscriptenWindow->getSoundPct();
   Mix_VolumeMusic((double(volumePct) / 100.0) * double(MIX_MAX_VOLUME));
   Mix_Volume(-1, (double(volumePct) / 100.0) * double(MIX_MAX_VOLUME));
   sdl2w::Logger().get(sdl2w::DEBUG) << "Enable sound" << sdl2w::Logger::endl;
 }
 EMSCRIPTEN_KEEPALIVE
 void disableSound() {
-  sdl2w::Window::soundEnabled = false;
+  sdl2w::Window::_soundEnabled = false;
 
   Mix_VolumeMusic(0);
   Mix_Volume(-1, 0);
@@ -48,39 +67,33 @@ void disableSound() {
 }
 EMSCRIPTEN_KEEPALIVE
 void setVolume(int volumePct) {
-  sdl2w::Window& window = sdl2w::Window::getGlobalWindow();
-  window.setVolume(double(volumePct));
+  emshelpers::emscriptenWindow->setSoundPct(double(volumePct));
   sdl2w::Logger().get(sdl2w::DEBUG)
       << "Set volume:" << volumePct << "%" << sdl2w::Logger::endl;
 }
 EMSCRIPTEN_KEEPALIVE
 void setKeyDown(int key) {
-  sdl2w::Window& window = sdl2w::Window::getGlobalWindow();
-  sdl2w::Events& events = window.getEvents();
-  events.keydown(key);
+  emshelpers::emscriptenWindow->getEvents().keydown(key);
   sdl2w::Logger().get(sdl2w::DEBUG)
       << "External set key down: " << key << sdl2w::Logger::endl;
 }
 EMSCRIPTEN_KEEPALIVE
 void setKeyUp(int key) {
-  sdl2w::Window& window = sdl2w::Window::getGlobalWindow();
-  sdl2w::Events& events = window.getEvents();
-  events.keyup(key);
+  emshelpers::emscriptenWindow->getEvents().keyup(key);
   sdl2w::Logger().get(sdl2w::DEBUG)
       << "External set key up: " << key << sdl2w::Logger::endl;
 }
 EMSCRIPTEN_KEEPALIVE
 void setKeyStatus(int status) {
-  sdl2w::Window& window = sdl2w::Window::getGlobalWindow();
-  window.isInputEnabled = !!status;
+  sdl2w::Window::_inputEnabled = !!status;
   sdl2w::Logger().get(sdl2w::DEBUG)
-      << "External set key status: " << window.isInputEnabled
+      << "External set key status: " << sdl2w::Window::_inputEnabled
       << sdl2w::Logger::endl;
 }
 EMSCRIPTEN_KEEPALIVE
 void sendEvent(int event, int payload) {
-  sdl2w::Window& window = sdl2w::Window::getGlobalWindow();
-  window.externalEvents.emplace_back(event, payload);
+  emshelpers::emscriptenWindow->pushExternalEvent(event);
+  emshelpers::emscriptenWindow->pushExternalEvent(payload);
   sdl2w::Logger().get(sdl2w::DEBUG) << "External event received: " << event
                                     << ":" << payload << sdl2w::Logger::endl;
 }

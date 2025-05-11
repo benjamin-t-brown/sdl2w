@@ -6,6 +6,7 @@
 #include <deque>
 #include <functional>
 #include <string>
+#include <unordered_map>
 
 namespace sdl2w {
 
@@ -26,6 +27,7 @@ class Window {
   Events events;
   std::deque<double> pastFrameTimes;
   std::function<bool(void)> renderCb;
+  std::vector<int> externalEvents;
 
   std::pair<int, int> mousePos;
   Uint64 now;
@@ -40,13 +42,14 @@ class Window {
   bool firstLoop = true;
   bool isLooping = false;
 
-  static bool _soundEnabled;
   static bool _isInit;
 
 public:
   static bool isInit();
   static void init();
   static void unInit();
+  static bool _soundEnabled;
+  static bool _inputEnabled;
 
   Window(Store& store, const Window2Params& params);
   ~Window();
@@ -54,6 +57,9 @@ public:
   Draw& getDraw() { return draw; }
   Store& getStore() { return store; }
   Events& getEvents() { return events; }
+  void pushExternalEvent(int event) {
+    externalEvents.push_back(event);
+  }
   void setSoundPct(int pct);
   int getSoundPct() const { return soundPct; }
   void playSound(const std::string& name);

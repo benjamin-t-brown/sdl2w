@@ -13,7 +13,7 @@ void runProgram(int argc, char** argv) {
   sdl2w::Store store;
   sdl2w::Window window(store,
                        {
-                           .mode = sdl2w::DrawMode::GPU,
+                           .mode = sdl2w::DrawMode::CPU,
                            .title = "SDL2W Example",
                            .w = w,
                            .h = h,
@@ -35,8 +35,8 @@ void runProgram(int argc, char** argv) {
   window.getStore().loadAndStoreFont("cabal", "assets/cabal.ttf");
   assetLoader.loadAssetsFromFile(sdl2w::ASSET_FILE, "assets/assets.txt");
 
-  window.getStore().logAllSprites();
-  window.getStore().logAllAnimationDefinitions();
+  // window.getStore().logAllSprites();
+  // window.getStore().logAllAnimationDefinitions();
 
   sdl2w::Draw& d = window.getDraw();
 

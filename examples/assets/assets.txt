@@ -11,7 +11,6 @@ Sprites,fractal,1,64,64
 # EndAnim
 Anim,ken_walk,loop
 ken_0 100
-ken_0 100
 ken_1 100
 ken_2 100
 ken_3 100

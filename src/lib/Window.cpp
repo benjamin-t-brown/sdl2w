@@ -1,6 +1,12 @@
 #include "Window.h"
 #include "Defines.h"
+#include "EmscriptenHelpers.h"
 #include "Logger.h"
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/html5.h>
+#endif
 
 #if defined(MIYOOA30) || defined(MIYOOMINI)
 #include <SDL.h>
@@ -20,6 +26,7 @@
 
 namespace sdl2w {
 bool Window::_soundEnabled = true;
+bool Window::_inputEnabled = true;
 bool Window::_isInit = false;
 
 Window::Window(Store& store, const Window2Params& params)
@@ -47,6 +54,8 @@ Window::Window(Store& store, const Window2Params& params)
   draw.setSdlRenderer(sdlRenderer, params.renderW, params.renderH, format);
 
   Mix_AllocateChannels(numSoundChannels);
+
+  emshelpers::setEmscriptenWindow(this);
 }
 
 Window::~Window() {}
@@ -177,6 +186,10 @@ void Window::renderLoop() {
 
   SDL_Event e;
   while (SDL_PollEvent(&e) != 0) {
+    // empty event queue
+    if (!_inputEnabled) {
+      continue;
+    }
 #ifdef __EMSCRIPTEN__
     if (e.type == SDL_QUIT) {
       LOG(WARN) << "[sdl2w] QUIT is overridden in EMSCRIPTEN" << Logger::endl;

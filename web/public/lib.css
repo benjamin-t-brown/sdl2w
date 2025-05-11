@@ -1,0 +1,182 @@
+@font-face {
+  font-family: Consolas;
+  src: local(Consolas), url(Consolas.woff);
+}
+body {
+  background: black;
+  color: #dedede;
+  margin: 0px;
+  font-family: Consolas;
+}
+
+.game-outer-no-controls {
+  position: absolute;
+  top: 36px;
+  width: 100%;
+  height: calc(100% - 36px);
+}
+
+.game-outer-yes-controls {
+  position: absolute;
+  top: 36px;
+  width: calc(100% - 200px - 200px);
+  height: calc(100% - 36px);
+  left: 200px;
+}
+
+#game {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+#game canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#loading {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.scaffold-outer {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 100%;
+  height: 100%;
+}
+
+.scaffold-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-direction: column;
+  width: 200px;
+}
+
+#scaffold-controls-bottom {
+  position: absolute;
+  bottom: 0px;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.scaffold-dpad {
+  width: 124px;
+  pointer-events: all;
+}
+
+.scaffold-buttons {
+  width: 160px;
+}
+
+.scaffold-button {
+  border: 1px solid white;
+  border-radius: 4px;
+  touch-action: manipulation;
+  color: white;
+  font-family: monospace;
+  font-size: 16px;
+  padding: 16px;
+  text-align: center;
+  min-width: 48px;
+  pointer-events: all;
+}
+.scaffold-button:active {
+  border: 1px solid black;
+}
+
+.scaffold-button-direction {
+  background: #333;
+}
+
+.scaffold-button-confirm {
+  background: green;
+  margin: 4px;
+}
+
+.scaffold-button-cancel {
+  background: red;
+  margin: 4px;
+}
+
+.scaffold-button-shift {
+  background: darkgoldenrod;
+  margin: 4px;
+}
+
+.scaffold-flex-row-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.scaffold-flex-row-flex-end {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.scaffold-flex-row-space-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scaffold-vertical-spacer {
+  height: 32px;
+}
+
+.tap-to-start {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  font-size: 32px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font-family: Consolas;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 4px;
+  background: #243f72;
+  border: 2px solid #31a2f2;
+  border-bottom: 2px solid #999;
+}
+button:hover {
+  filter: brightness(120%);
+}
+button:active {
+  filter: brightness(80%);
+  transform: translateY(2px);
+}
+
+button > img {
+  width: 24px;
+}
+
+button.cancel-button {
+  background: #5e3643;
+  border: 2px solid #be2633;
+  border-bottom: 2px solid #999;
+}

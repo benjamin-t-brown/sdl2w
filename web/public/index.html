@@ -1,0 +1,66 @@
+<html>
+<header>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" href="lib.css" />
+</header>
+
+<body>
+  <div id="loading" class="fixed">
+    <img src="loading.gif" alt="loading" />
+  </div>
+  <div id="error" class="fixed" style="display: none">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content center;">
+      <img src="error.png" alt="error" />
+      <div style="margin-top: 8px">
+        Encountered a problem with this content.
+      </div>
+    </div>
+  </div>
+  <div id="outer-game" class="game-outer-yes-controls">
+    <div id="game" style="display: none;">
+      <canvas id="canvas"> </canvas>
+    </div>
+  </div>
+  <div id="top-bar" style="display: none;">
+    <!-- top-bar shown here -->
+    <button onclick="onToggleSound(this)"><img src="icons/sound_on.svg"></img></button>
+    <button onclick="onToggleControls(this)"><img src="icons/controls.svg"></img></button>
+  </div>
+  <div id="controls" style="display: none; pointer-events:none;">
+    <!-- controls shown here -->
+  </div>
+</body>
+<footer>
+  <script>
+    // Name of the binary outputted by your Makefile
+    const gameName = 'SDL2W_Example';
+    document.title = gameName;
+
+    function init() {
+      window.createOnScreenControls('normal', 'abshift');
+      const script = document.createElement('script');
+      script.setAttribute('type', 'text/javascript');
+      // script.setAttribute('async', true);
+      script.setAttribute('src', gameName.toUpperCase() + '.js');
+      document.body.appendChild(script);
+    }
+    function start() {
+      Lib.enableModuleControls();
+
+      // simulate enter press
+      Lib.handleButtonDown(13);
+      setTimeout(() => {
+        Lib.handleButtonUp(13);
+      }, 1);
+    }
+    function end() {
+      Lib.disableModuleControls();
+    }
+  </script>
+  <script type="text/javascript" src="lib/lib.js"></script>
+  <script type="text/javascript" src="lib/input.js"></script>
+  <script type="text/javascript" src="lib/buttons.js"></script>
+</footer>
+
+</html>
