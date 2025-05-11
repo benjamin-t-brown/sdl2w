@@ -2,6 +2,7 @@
 
 #include "Draw.h"
 #include "Store.h"
+#include <future>
 #include <string>
 
 namespace sdl2w {
@@ -47,8 +48,10 @@ class AssetLoader {
 public:
   std::unordered_map<std::string, std::string> picturePathToAlias;
   std::unordered_map<std::string, std::string> spriteNameToPictureAlias;
+  static bool fsReady;
 
   AssetLoader(Draw& drawA, Store& storeA) : draw(drawA), store(storeA) {}
+  static void initFs();
 
   void loadAssetsFromFile(AssetFileType type, const std::string& path);
 };

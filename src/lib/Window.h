@@ -26,7 +26,9 @@ class Window {
   Draw draw;
   Events events;
   std::deque<double> pastFrameTimes;
-  std::function<bool(void)> renderCb;
+  std::function<bool(void)> initializingCb;
+  std::function<void(void)> onInitCb;
+  std::function<bool(void)> loopCb;
   std::vector<int> externalEvents;
 
   std::pair<int, int> mousePos;
@@ -57,9 +59,8 @@ public:
   Draw& getDraw() { return draw; }
   Store& getStore() { return store; }
   Events& getEvents() { return events; }
-  void pushExternalEvent(int event) {
-    externalEvents.push_back(event);
-  }
+  void pushExternalEvent(int event) { externalEvents.push_back(event); }
+  bool isReady() const;
   void setSoundPct(int pct);
   int getSoundPct() const { return soundPct; }
   void playSound(const std::string& name);
@@ -70,7 +71,9 @@ public:
   int getDeltaTime() const { return static_cast<int>(deltaTime); }
 
   void renderLoop();
-  void startRenderLoop(std::function<bool(void)> cb);
+  void startRenderLoop(std::function<bool(void)> _initializingCb,
+                       std::function<void(void)> _onInitCb,
+                       std::function<bool(void)> _loopCb);
 };
 
 } // namespace sdl2w

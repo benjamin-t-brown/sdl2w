@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
                  "<translations_directory> <lang_code1> <lang_code2> ..."
               << std::endl;
     std::cerr << "Example: " << argv[0]
-              << " --input-dir ./src --output-dir ./translations en la fr"
+              << " --input-dir ./src --output-dir ./assets en la fr"
               << std::endl;
     return 1;
   }
@@ -140,7 +140,7 @@ int main(int argc, char* argv[]) {
                  "<translations_directory> <lang_code1> <lang_code2> ..."
               << std::endl;
     std::cerr << "Example: " << argv[0]
-              << " --input-dir ./src --output-dir ./translations en la fr"
+              << " --input-dir ./src --output-dir ./assets en la fr"
               << std::endl;
     return 1;
   }
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
                  "<translations_directory> <lang_code1> <lang_code2> ..."
               << std::endl;
     std::cerr << "Example: " << argv[0]
-              << " --input-dir ./src --output-dir ./translations en la fr"
+              << " --input-dir ./src --output-dir ./assets en la fr"
               << std::endl;
     return 1;
   }

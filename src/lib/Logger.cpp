@@ -11,17 +11,21 @@ static std::string removeANSIEscapeCodes(const std::string& str) {
 }
 
 const std::string Logger::endl = std::string("\n");
+LogType Logger::logLevel = DEBUG;
+LogType Logger::localLogLevel = DEBUG;
 bool Logger::disabled = false;
 bool Logger::colorEnabled = true;
 bool Logger::logToFile = false;
 std::fstream Logger::logFile;
 
 std::ostringstream& Logger::get(LogType level) {
+  localLogLevel = logLevel;
   std::string label = getLabel(level);
   os << label;
   return os;
 }
 std::ostringstream& Logger::get(LogType level, const char* file, int line) {
+  localLogLevel = logLevel;
   std::string label = getLabel(level);
   std::string colorPre = Logger::colorEnabled ? "\033[90m" : "";
   std::string colorPost = Logger::colorEnabled ? "\033[0m" : "";
@@ -60,6 +64,9 @@ std::string Logger::getLabel(LogType type) {
   return label;
 }
 Logger::~Logger() {
+  if (Logger::logLevel > localLogLevel) {
+    return;
+  }
   if (!Logger::disabled) {
     fprintf(stdout, "%s", os.str().c_str());
     fflush(stdout);
@@ -79,10 +86,16 @@ void Logger::setLogToFile(bool logToFileA) {
   Logger::logToFile = logToFileA;
 }
 
+void Logger::setLogLevel(LogType level) { Logger::logLevel = level; }
+
 int Logger::printf(const char* c, ...) {
   if (Logger::disabled) {
     return 0;
   }
+  if (Logger::logLevel > localLogLevel) {
+    return 0;
+  }
+
   va_list lst;
   va_start(lst, c);
   while (*c != '\0') {

@@ -240,7 +240,7 @@ void Draw::setSdlRenderer(SDL_Renderer* r,
                           int renderWidthA,
                           int renderHeightA,
                           Uint32 format) {
-  LOG_LINE(DEBUG) << "[sdl2w] Set sdlRenderer, renderW and renderH: "
+  LOG(DEBUG) << "[sdl2w] Set sdlRenderer, renderW and renderH: "
                   << renderWidthA << "," << renderHeightA << Logger::endl;
   sdlRenderer = r;
   renderWidth = renderWidthA;

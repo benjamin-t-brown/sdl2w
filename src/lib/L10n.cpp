@@ -1,5 +1,5 @@
 #include "L10n.h"
-#include "AssetLoader.h"
+#include "Defines.h"
 #include "Logger.h"
 #include <unordered_map>
 
@@ -13,8 +13,6 @@ std::vector<std::string> L10n::supportedLanguages = {
     "en"};
 
 void L10n::init(const std::vector<std::string>& langs) {
-  Logger().get() << "Localization is "
-                 << "enabled" << Logger::endl;
   if (!isEnabled()) {
     return;
   }
@@ -26,8 +24,8 @@ void L10n::init(const std::vector<std::string>& langs) {
   for (const auto& lang : supportedLanguages) {
     const std::string path = "assets/translation." + lang + ".txt";
     try {
-      LOG_LINE(DEBUG) << "[sdl2w] Loading translation file "
-                      << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+      LOG(DEBUG) << "[sdl2w] Loading translation file "
+                 << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
       std::ifstream file(std::string(ASSETS_PREFIX) + path);
       if (!file) {
         LOG_LINE(ERROR) << "[sdl2w] Error opening file: " << path
@@ -92,7 +90,7 @@ void L10n::setLanguage(const std::string& lang) {
   auto it = locStrings.find(lang);
   if (it != locStrings.end()) {
     language = lang;
-    LOG(DEBUG) << "Language set to '" << lang << "'" << Logger::endl;
+    LOG(DEBUG) << "[sdl2w] Language set to '" << lang << "'" << Logger::endl;
   } else {
     LOG_LINE(ERROR) << "Language '" << lang << "' not supported."
                     << Logger::endl;
@@ -115,7 +113,8 @@ size_t L10n::hash(std::string_view str) {
   std::hash<std::string> hasher;
   size_t result = hasher(std::string(str));
 
-  if (locStrings["default"].find(result) != locStrings["default"].end()) {
+  // "default" bypasses translation files
+  if (locStrings["default"].find(result) == locStrings["default"].end()) {
     locStrings["default"][result] = std::string(str);
   }
 

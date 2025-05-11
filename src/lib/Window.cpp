@@ -1,4 +1,5 @@
 #include "Window.h"
+#include "AssetLoader.h"
 #include "Defines.h"
 #include "EmscriptenHelpers.h"
 #include "Logger.h"
@@ -37,8 +38,8 @@ Window::Window(Store& store, const Window2Params& params)
     return;
   }
 
-  LOG_LINE(DEBUG) << "[sdl2w] Create window:" << " " << params.w << " "
-                  << params.h << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Create window:" << " " << params.w << " " << params.h
+             << Logger::endl;
 
   // create window and renderer
   sdlWindow = SDL_CreateWindow(params.title.c_str(),
@@ -55,10 +56,14 @@ Window::Window(Store& store, const Window2Params& params)
 
   Mix_AllocateChannels(numSoundChannels);
 
+  AssetLoader::initFs();
+
   emshelpers::setEmscriptenWindow(this);
 }
 
 Window::~Window() {}
+
+bool Window::isReady() const { return _isInit && AssetLoader::fsReady; }
 
 void Window::setSoundPct(int pct) { soundPct = pct; }
 
@@ -126,7 +131,7 @@ void Window::init() {
     return;
   }
 
-  LOG_LINE(DEBUG) << "[sdl2w] Init SDL" << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Init SDL" << Logger::endl;
 
   SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
            SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
@@ -150,7 +155,7 @@ void Window::init() {
 
 void Window::unInit() {
   if (_isInit) {
-    LOG_LINE(DEBUG) << "[sdl2w] UnInit SDL" << Logger::endl;
+    LOG(DEBUG) << "[sdl2w] UnInit SDL" << Logger::endl;
 
     TTF_Quit();
     Mix_CloseAudio();
@@ -171,8 +176,6 @@ void Window::renderLoop() {
   }
   if (firstLoop) {
     deltaTime = 16.6666;
-    firstLoop = false;
-    pastFrameTimes.push_back(deltaTime);
   } else {
     deltaTime = static_cast<double>((nowMicroSeconds - lastFrameTime) * div) /
                 static_cast<double>(freq);
@@ -238,18 +241,30 @@ void Window::renderLoop() {
   }
 
   events.update();
-  isLooping = renderCb();
+  if (isReady()) {
+    if (firstLoop) {
+      onInitCb();
+      firstLoop = false;
+    }
+    isLooping = loopCb();
+  } else {
+    isLooping = initializingCb();
+  }
+
   draw.renderIntermediate();
-  firstLoop = false;
 }
 
 #ifdef __EMSCRIPTEN__
 void RenderLoopCallback(void* arg) { static_cast<Window*>(arg)->renderLoop(); }
 #endif
-void Window::startRenderLoop(std::function<bool(void)> cb) {
+void Window::startRenderLoop(std::function<bool(void)> _initializingCb,
+                             std::function<void(void)> _onInitCb,
+                             std::function<bool(void)> _loopCb) {
   firstLoop = true;
   isLooping = true;
-  renderCb = cb;
+  initializingCb = _initializingCb;
+  loopCb = _loopCb;
+  onInitCb = _onInitCb;
   Window::now = SDL_GetPerformanceCounter();
 
 #ifdef __EMSCRIPTEN__

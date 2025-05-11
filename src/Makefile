@@ -9,7 +9,7 @@ lib/AssetLoader.cpp\
 lib/Events.cpp\
 lib/Animation.cpp\
 lib/L10n.cpp\
-lib/Revirtualis.cpp\
+lib/Init.cpp\
 lib/EmscriptenHelpers.cpp
 
 CLIENT_NONLIB_CODE=\
@@ -28,6 +28,8 @@ TEST_CODE_UI=\
 
 # Target can be 'native' or 'wasm'. Default to native.
 TARGET ?= native
+MIYOOA30 ?= false
+MIYOOMINI ?= false
 
 # Base output directories
 BASE_BUILD_DIR = build
@@ -61,7 +63,7 @@ ifeq ($(TARGET),wasm)
     # Flags for compiling .o files and also for linking
     EMCC_COMP_LINK_COMMON = $(EMCC_BASE_OPTS) $(EMCC_SDL_SETTINGS) $(EMCC_ENV_SETTINGS)
 
-    CURRENT_COMPILE_FLAGS_BASE = -Wall -std=c++17 -I. -DSDL2W_ENABLE_L10N
+    CURRENT_COMPILE_FLAGS_BASE = -Wall -std=c++17 -I.
     ifeq ($(DEBUG),true)
         CURRENT_COMPILE_FLAGS_BASE += -g
     endif
@@ -80,15 +82,22 @@ else # native (default)
     CXX = g++
     TARGET_SUFFIX = $(NATIVE_DIR_SUFFIX)
 
-    CURRENT_COMPILE_FLAGS = -O1 -Wall -std=c++17 -I. -DSDL2W_ENABLE_L10N
+    CURRENT_COMPILE_FLAGS = -O1 -Wall -std=c++17 -I.
     ifeq ($(DEBUG),true)
         CURRENT_COMPILE_FLAGS += -g
     endif
     CURRENT_FLAGS = $(CURRENT_COMPILE_FLAGS) # For .o compilation
 
+    ifeq ($(MIYOOA30),true)
+        CURRENT_FLAGS += -DMIYOOA30
+    endif
+    ifeq ($(MIYOOMINI),true)
+        CURRENT_FLAGS += -DMIYOOA30
+    endif
+
     CURRENT_LINK_FLAGS =
     ifeq ($(OS),Windows_NT)
-        # CURRENT_LINK_FLAGS += -fuse-ld=lld # User can uncomment if needed
+        # CURRENT_LINK_FLAGS += -fuse-ld=lld # can uncomment if needed
     endif
 
     ifeq ($(OS),Windows_NT)
@@ -135,12 +144,7 @@ INSTALL_INCLUDE_DIR = $(INSTALL_DIR)/include
 # Header source directories (relative to this Makefile in src/)
 HEADER_SRC_DIRS = lib
 
-# Ensure output directories exist
-DIRS_TO_CREATE = $(CURRENT_OBJ_DIR)/lib $(CURRENT_OBJ_DIR)/tools $(CURRENT_LIB_OUTPUT_DIR) $(CURRENT_BIN_OUTPUT_DIR)
-$(DIRS_TO_CREATE):
-	@mkdir -p $@
-
-.PHONY: native wasm all dist tools clean $(DIRS_TO_CREATE)
+.PHONY: tools clean $(DIRS_TO_CREATE)
 
 # Top-level targets for specific builds
 native:
@@ -149,11 +153,22 @@ native:
 wasm:
 	@$(MAKE) all TARGET=wasm
 
+miyooa30:
+	@$(MAKE) all TARGET=native MIYOOA30=true
+
+miyoomini:
+	@$(MAKE) all TARGET=native MIYOOMINI=true
+
+all: dist
+
+# Ensure output directories exist
+DIRS_TO_CREATE = $(CURRENT_OBJ_DIR)/lib $(CURRENT_OBJ_DIR)/tools $(CURRENT_LIB_OUTPUT_DIR) $(CURRENT_BIN_OUTPUT_DIR)
+$(DIRS_TO_CREATE):
+	@mkdir -p $@
+
 # Rule for the static library
 $(LIB_SDL2W): $(ALL_CLIENT_OBJECTS) | $(CURRENT_LIB_OUTPUT_DIR)
 	ar rcs $@ $(ALL_CLIENT_OBJECTS)
-
-all: dist
 
 # 'dist' target: installs library, headers, and tools for the current target
 dist: $(LIB_SDL2W)
@@ -164,7 +179,6 @@ dist: $(LIB_SDL2W)
 	@echo "Copying header files from $(HEADER_SRC_DIRS) to $(INSTALL_INCLUDE_DIR)/"
 	cp -f lib/*.h $(INSTALL_INCLUDE_DIR)/
 	@echo "Created $(TARGET) sdl2w folder at top level directory."
-	rm -rf build
 
 tools: L10nScanner Anims
 

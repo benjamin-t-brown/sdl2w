@@ -1,10 +1,10 @@
-#include "Revirtualis.h"
+#include "Init.h"
 #include "L10n.h"
 #include "Logger.h"
 #include <string>
 #include <vector>
 
-namespace revirtualis {
+namespace sdl2w {
 
 void setLanguage(int argc, char* argv[]) {
   std::string langArg = "en";
@@ -17,10 +17,10 @@ void setLanguage(int argc, char* argv[]) {
   sdl2w::L10n::setLanguage(langArg);
 }
 
-void setupRevirtualis(int argc, char* argv[], sdl2w::Window& window) {
-  window.getStore().loadAndStoreFont(
-      std::string(REVIRTUALIS_FONT_NAME),
-      "assets/" + std::string(REVIRTUALIS_FONT_NAME) + ".ttf");
+void setupStartupArgs(int argc, char* argv[], sdl2w::Window& window) {
+  window.getStore().loadAndStoreFont(std::string(SPLASH_FONT_NAME),
+                                     "assets/" + std::string(SPLASH_FONT_NAME) +
+                                         ".ttf");
 #ifndef __EMSCRIPTEN__
   sdl2w::Logger::setLogToFile(true);
 #endif
@@ -47,7 +47,7 @@ void renderSplash(sdl2w::Window& window) {
   for (int i = 0; i < static_cast<int>(lines.size()); i++) {
     d.drawText(lines[i],
                {
-                   .fontName = std::string(REVIRTUALIS_FONT_NAME),
+                   .fontName = std::string(SPLASH_FONT_NAME),
                    .fontSize = sdl2w::TextSize::TEXT_SIZE_16,
                    .x = x,
                    .y = y + i * 20 - 100,
@@ -57,7 +57,7 @@ void renderSplash(sdl2w::Window& window) {
   }
   d.drawText("Have fun!",
              {
-                 .fontName = std::string(REVIRTUALIS_FONT_NAME),
+                 .fontName = std::string(SPLASH_FONT_NAME),
                  .fontSize = sdl2w::TextSize::TEXT_SIZE_24,
                  .x = x,
                  .y = y + 50,
@@ -66,18 +66,9 @@ void renderSplash(sdl2w::Window& window) {
              });
 }
 
-void showRevirtualisSplash(sdl2w::Window& window, int duration) {
+void renderRevirtualisSplash(sdl2w::Window& window) {
   window.getDraw().setBackgroundColor({16, 30, 41});
-#ifdef __EMSCRIPTEN__
   renderSplash(window);
-#else
-  int t = 0;
-  window.startRenderLoop([&]() {
-    renderSplash(window);
-    t += std::min(window.getDeltaTime(), 100);
-    return !(t >= duration);
-  });
-#endif
 }
 
-} // namespace revirtualis
+} // namespace sdl2w

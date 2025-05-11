@@ -3,7 +3,7 @@
 #include "../sdl2w/include/Draw.h"
 #include "../sdl2w/include/L10n.h"
 #include "../sdl2w/include/Logger.h"
-#include "../sdl2w/include/Revirtualis.h"
+#include "../sdl2w/include/Init.h"
 #include "../sdl2w/include/Window.h"
 
 void runProgram(int argc, char** argv) {
@@ -24,9 +24,11 @@ void runProgram(int argc, char** argv) {
                        });
   sdl2w::L10n::init(std::vector<std::string>({"en", "la"}));
 
-  // proprietary splash screen
-  revirtualis::setupRevirtualis(argc, argv, window);
-  revirtualis::showRevirtualisSplash(window);
+  // language/log to file (requires monofonto)
+  sdl2w::setupStartupArgs(argc, argv, window);
+
+  // disable translations by setting to "default"
+  // sdl2w::L10n::setLanguage("default");
 
   window.getDraw().setBackgroundColor({0, 0, 145});
 
@@ -75,7 +77,7 @@ void runProgram(int argc, char** argv) {
           }
         } else if (key == "Left Shift") {
           window.playSound("test1");
-        } else if (key == "Left Alt") {
+        } else if (key == "Z") {
           window.playSound("test2");
         } else if (key == "Left Ctrl") {
           window.playSound("test3");
@@ -84,7 +86,25 @@ void runProgram(int argc, char** argv) {
         lastKeyPressed = key + " (" + std::to_string(button) + ")";
       });
 
-  window.startRenderLoop([&]() {
+  auto _loadLoop = [&]() {
+    sdl2w::renderSplash(window);
+    return true;
+  };
+
+  auto _onLoaded = [&]() {
+    LOG(INFO) << "Init cb" << LOG_ENDL;
+    try {
+      std::string localFile = sdl2w::loadFileAsString("localFile.txt");
+      LOG(INFO) << "localFile.txt contents: " << localFile << LOG_ENDL;
+      localFile += "a";
+      sdl2w::saveFileAsString("localFile.txt", localFile);
+    } catch (std::exception& e) {
+      LOG(INFO) << "localFile.txt does not exist, so creating it." << LOG_ENDL;
+      sdl2w::saveFileAsString("localFile.txt", "Hello World!");
+    }
+  };
+
+  auto _mainLoop = [&]() {
     const int dt = window.getDeltaTime();
 
     // update
@@ -133,7 +153,7 @@ void runProgram(int argc, char** argv) {
 
     d.drawText(
         TRANSLATE("Welcome to the SDL2W Example!"),
-        sdl2w::RenderTextParams{.fontName = "default",
+        sdl2w::RenderTextParams{.fontName = "cabal",
                                 .fontSize = sdl2w::TextSize::TEXT_SIZE_24,
                                 .x = w / 2,
                                 .y = 24,
@@ -141,7 +161,7 @@ void runProgram(int argc, char** argv) {
                                 .centered = true});
 
     d.drawText(
-        TRANSLATE("Press Shift Alt or Ctrl to play sounds!"),
+        TRANSLATE("Press Z, Shift, or Ctrl to play sounds!"),
         sdl2w::RenderTextParams{.fontName = "default",
                                 .fontSize = sdl2w::TextSize::TEXT_SIZE_16,
                                 .x = w / 2,
@@ -175,9 +195,10 @@ void runProgram(int argc, char** argv) {
                                 .y = h - 24,
                                 .color = {200, 200, 200},
                                 .centered = false});
-
     return true;
-  });
+  };
+
+  window.startRenderLoop(_loadLoop, _onLoaded, _mainLoop);
 }
 
 int main(int argc, char** argv) {

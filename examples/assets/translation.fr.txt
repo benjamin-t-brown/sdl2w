@@ -1,0 +1,5 @@
+[Last key pressed: ] {MISSING!}
+[Press Left/Right or X to punch!] {MISSING!}
+[Press Space to start/stop music!] {MISSING!}
+[Press Z, Shift, or Ctrl to play sounds!] {MISSING!}
+[Welcome to the SDL2W Example!] {MISSING!}

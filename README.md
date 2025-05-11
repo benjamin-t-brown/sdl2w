@@ -13,6 +13,7 @@ This is a minimalistic C++17 library which wraps SDL2 functionality and includes
   - TTF fonts
   - Animation Definitions
   - Localization
+  - WASM IndexDB Persistent Storage
 - 2d Rendering
   - Sprites with Translate/Rotate/Scale
   - Cached flipped sprites

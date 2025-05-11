@@ -4,6 +4,7 @@
 #include "Logger.h"
 #include <filesystem>
 #include <fstream> // Added fstream include for std::ifstream
+
 #include <map>     // Added map include
 #include <sstream> // Added sstream include for std::stringstream
 #include <stdexcept>
@@ -26,6 +27,8 @@
 #endif
 
 namespace sdl2w {
+
+bool AssetLoader::fsReady = false;
 
 std::string slice(const std::string& str, int start, int end) {
   const int len = static_cast<int>(str.length());
@@ -145,6 +148,58 @@ bool strEndsWith(const std::string& fullString, const std::string& ending) {
   }
 }
 
+#ifdef __EMSCRIPTEN__
+extern "C" {
+EMSCRIPTEN_KEEPALIVE void fs_init_complete(int success) {
+  AssetLoader::fsReady = success == 1;
+}
+}
+#endif
+
+// async function to initialize the filesystem
+void AssetLoader::initFs() {
+#ifdef __EMSCRIPTEN__
+  EM_ASM({
+    // create save dir
+    try {
+      FS.mkdir('/sdl2wdata');
+    } catch (e) {
+      // Directory might already exist
+      if (e.code != 'EEXIST') {
+        console.error("[sdl2w] Error creating directory:", e);
+        _fs_init_complete(0);
+        return;
+      }
+    }
+
+    // mount save dir
+    try {
+      FS.mount(IDBFS, {}, '/sdl2wdata');
+    } catch (e) {
+      console.error("[sdl2w console] Error mounting filesystem:", e);
+      _fs_init_complete(0);
+      return;
+    }
+
+    // Load from IndexedDB (async operation)
+    FS.syncfs(
+        true, function(err) {
+          if (err) {
+            console.error("[sdl2w console] Error loading filesystem from IndexedDB:",
+                          err);
+            _fs_init_complete(0);
+          } else {
+            console.log("[sdl2w console] Filesystem loaded from IndexedDB");
+            _fs_init_complete(1);
+          }
+        });
+  });
+#else
+  // For non-Emscripten platforms, just complete immediately
+  fsReady = true;
+#endif
+}
+
 void AssetLoader::loadPicture(const std::string& name,
                               const std::string& path) {
   SDL_Surface* loadedImage = IMG_Load(path.c_str());
@@ -242,8 +297,8 @@ void AssetLoader::loadSpriteSheet(const std::string& pictureName,
 void AssetLoader::loadAnimationDefinition(const std::string& name, bool loop) {}
 
 void AssetLoader::loadSpriteAssetsFromFile(const std::string& path) {
-  LOG_LINE(DEBUG) << "[sdl2w] Loading sprite assets from file "
-                  << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Loading sprite assets from file "
+             << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
   std::ifstream file(std::string(ASSETS_PREFIX) + path);
   if (!file.is_open()) {
     LOG_LINE(ERROR) << "[sdl2w] Failed to open file: "
@@ -308,8 +363,8 @@ void AssetLoader::loadSpriteAssetsFromFile(const std::string& path) {
   }
 }
 void AssetLoader::loadAnimationAssetsFromFile(const std::string& path) {
-  LOG_LINE(DEBUG) << "[sdl2w] Loading anim assets from file "
-                  << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Loading anim assets from file "
+             << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
   try {
     std::string animName = "";
     std::string line;
@@ -361,8 +416,8 @@ void AssetLoader::loadAnimationAssetsFromFile(const std::string& path) {
 }
 
 void AssetLoader::loadSoundAssetsFromFile(const std::string& path) {
-  LOG_LINE(DEBUG) << "[sdl2w] Loading sound assets from file "
-                  << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Loading sound assets from file "
+             << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
   std::ifstream file(std::string(ASSETS_PREFIX) + path);
   if (!file.is_open()) {
     LOG_LINE(ERROR) << "[sdl2w] Failed to open file: "
@@ -393,8 +448,8 @@ void AssetLoader::loadSoundAssetsFromFile(const std::string& path) {
 }
 
 void AssetLoader::loadAssetFile(const std::string& path) {
-  LOG_LINE(DEBUG) << "[sdl2w] Loading asset file "
-                  << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Loading asset file "
+             << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
   std::ifstream file(std::string(ASSETS_PREFIX) + path);
   if (!file.is_open()) {
     LOG_LINE(ERROR) << "[sdl2w] Failed to open file: "
@@ -444,10 +499,9 @@ void AssetLoader::loadAssetFile(const std::string& path) {
                             << e.what() << Logger::endl;
           }
         } else {
-          LOG_LINE(WARN)
-              << "[sdl2w] Malformed or incomplete animation frame line: '"
-              << line << "' for animation '" << currentAnimationName << "'"
-              << Logger::endl;
+          LOG(WARN) << "[sdl2w] Malformed or incomplete animation frame line: '"
+                    << line << "' for animation '" << currentAnimationName
+                    << "'" << Logger::endl;
         }
         continue;
       }
@@ -470,8 +524,8 @@ void AssetLoader::loadAssetFile(const std::string& path) {
           nextSpriteIndexForPicture[alias] =
               0; // Initialize sprite counter for this picture
         } else {
-          LOG_LINE(WARN) << "[sdl2w] Malformed Pic asset specified: " << line
-                         << Logger::endl;
+          LOG(WARN) << "[sdl2w] Malformed Pic asset specified: " << line
+                    << Logger::endl;
         }
       } else if (command == "Sprites") {
         if (tokens.size() >= 5) {
@@ -483,7 +537,7 @@ void AssetLoader::loadAssetFile(const std::string& path) {
 
             if (nextSpriteIndexForPicture.find(picName) ==
                 nextSpriteIndexForPicture.end()) {
-              LOG_LINE(WARN)
+              LOG(WARN)
                   << "[sdl2w] Sprites command for picture '" << picName
                   << "' encountered without a preceding 'Pic' command for it. "
                      "Assuming sprite index starts at 0."
@@ -511,8 +565,8 @@ void AssetLoader::loadAssetFile(const std::string& path) {
                 << line << " - " << oor.what() << Logger::endl;
           }
         } else {
-          LOG_LINE(WARN) << "[sdl2w] Malformed Sprites asset specified: "
-                         << line << Logger::endl;
+          LOG(WARN) << "[sdl2w] Malformed Sprites asset specified: " << line
+                    << Logger::endl;
         }
       } else if (command == "Anim") {
         if (tokens.size() >= 3) {
@@ -522,8 +576,8 @@ void AssetLoader::loadAssetFile(const std::string& path) {
           store.storeAnimationDefinition(currentAnimationName, loop);
           parsingAnimationFrames = true;
         } else {
-          LOG_LINE(WARN) << "[sdl2w] Malformed Anim asset specified: " << line
-                         << Logger::endl;
+          LOG(WARN) << "[sdl2w] Malformed Anim asset specified: " << line
+                    << Logger::endl;
         }
       } else if (command == "Sound") {
         if (tokens.size() >= 3) {
@@ -531,8 +585,8 @@ void AssetLoader::loadAssetFile(const std::string& path) {
           std::string soundPath = trim(tokens[2]);
           store.storeSound(alias, soundPath);
         } else {
-          LOG_LINE(WARN) << "[sdl2w] Malformed Sound asset specified: " << line
-                         << Logger::endl;
+          LOG(WARN) << "[sdl2w] Malformed Sound asset specified: " << line
+                    << Logger::endl;
         }
       } else if (command == "Music") {
         if (tokens.size() >= 3) {
@@ -540,12 +594,12 @@ void AssetLoader::loadAssetFile(const std::string& path) {
           std::string musicPath = trim(tokens[2]);
           store.storeMusic(alias, musicPath);
         } else {
-          LOG_LINE(WARN) << "[sdl2w] Malformed Music asset specified: " << line
-                         << Logger::endl;
+          LOG(WARN) << "[sdl2w] Malformed Music asset specified: " << line
+                    << Logger::endl;
         }
       } else {
-        LOG_LINE(WARN) << "[sdl2w] Unknown command in asset file: '" << command
-                       << "' in line: '" << line << "'" << Logger::endl;
+        LOG(WARN) << "[sdl2w] Unknown command in asset file: '" << command
+                  << "' in line: '" << line << "'" << Logger::endl;
       }
     }
     file.close();
@@ -578,22 +632,41 @@ void AssetLoader::loadAssetsFromFile(AssetFileType type,
 
 std::string loadFileAsString(const std::string& path) {
 #ifdef __EMSCRIPTEN__
-  LOG_LINE(DEBUG) << "[sdl2w] Loading file "
-                  << (std::string(INDEXDB_PREFIX) + path) << Logger::endl;
-  std::ifstream file("/" + std::string(INDEXDB_PREFIX) + path);
-#else
-  LOG_LINE(DEBUG) << "[sdl2w] Loading file "
-                  << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
-  std::ifstream file(std::string(ASSETS_PREFIX) + path);
+  // Use a path relative to the mounted filesystem
+  std::string fullPath = std::string("/sdl2wdata/") + path;
+
+  // Check if file exists
+  if (EM_ASM_INT(
+          {
+            try {
+              return FS.stat(UTF8ToString($0)) != undefined;
+            } catch (e) {
+              return 0;
+            }
+          },
+          fullPath.c_str())) {
+    // File exists, read it
+    std::ifstream file(fullPath);
+    if (!file) {
+      LOG_LINE(ERROR) << "[sdl2w] Error opening file: " << fullPath
+                      << Logger::endl;
+      return "";
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+  } else {
+    LOG_LINE(ERROR) << "[sdl2w] File not found: " << fullPath << Logger::endl;
+    return "";
+  }
 #endif
+  LOG(DEBUG) << "[sdl2w] Loading file " << (std::string(ASSETS_PREFIX) + path)
+             << Logger::endl;
+  std::ifstream file(std::string(ASSETS_PREFIX) + path);
 
   if (!file) {
     LOG_LINE(ERROR) << "[sdl2w] Error opening file: " << path << Logger::endl;
-#ifdef __EMSCRIPTEN__
-    return "";
-#else
     throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
-#endif
   }
   std::stringstream buffer;
   buffer << file.rdbuf();
@@ -602,22 +675,27 @@ std::string loadFileAsString(const std::string& path) {
 
 void saveFileAsString(const std::string& path, const std::string& content) {
 #ifdef __EMSCRIPTEN__
-  LOG_LINE(DEBUG) << "[sdl2w] Saving file "
-                  << (std::string(INDEXDB_PREFIX) + path) << Logger::endl;
-  std::ofstream file("/" + std::string(INDEXDB_PREFIX) + path);
+  std::stringstream transformPath;
+  transformPath << "/" << "sdl2wdata" << "/" << path;
+  LOG(DEBUG) << "[sdl2w] Saving file " << transformPath.str() << Logger::endl;
+  std::ofstream file(transformPath.str());
 #else
-  LOG_LINE(DEBUG) << "[sdl2w] Saving file "
-                  << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Saving file " << (std::string(ASSETS_PREFIX) + path)
+             << Logger::endl;
   std::ofstream file(std::string(ASSETS_PREFIX) + path);
 #endif
 
   if (!file) {
+
+#ifdef __EMSCRIPTEN__
+    LOG_LINE(ERROR) << "[sdl2w] Error opening file for save: "
+                    << transformPath.str() << Logger::endl;
+    // HACK emscripten is set to not catch errors
+    return;
+#else
     LOG_LINE(ERROR) << "[sdl2w] Error opening file for save: " << path
                     << Logger::endl;
     // HACK emscripten is set to not catch errors
-#ifdef __EMSCRIPTEN__
-    return;
-#else
     throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
 #endif
   }
@@ -625,16 +703,14 @@ void saveFileAsString(const std::string& path, const std::string& content) {
   file.close();
 
 #ifdef __EMSCRIPTEN__
-  // Sync the file system so that changes are persisted in IndexedDB.
-  EM_ASM({
-    FS.syncfs(
-        false, function(err) {
-          if (err)
-            console.error("[sdl2w console] Error syncing FS after write:", err);
-          else
-            console.log("[sdl2w console] FS sync complete after write.");
-        });
-  });
+  // write files to indexdb
+  EM_ASM(FS.syncfs(
+      false, function(err) {
+        if (err)
+          console.error("[sdl2w console] Error syncing to IndexedDB:", err);
+        else
+          console.log("[sdl2w console] Data synced to IndexedDB");
+      }););
 #endif
 }
 

@@ -15,7 +15,7 @@ sdl2w::Window* emscriptenWindow = nullptr;
 void setEmscriptenWindow(sdl2w::Window* window) {
   emscriptenWindow = window;
   sdl2w::Logger().get(sdl2w::DEBUG)
-      << "Set Emscripten window: " << emscriptenWindow << sdl2w::Logger::endl;
+      << "[sdl2w] Set Emscripten window: " << emscriptenWindow << sdl2w::Logger::endl;
 
 #ifdef __EMSCRIPTEN__
   std::stringstream ss;

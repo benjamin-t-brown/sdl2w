@@ -2,4 +2,5 @@
 [Press Left/Right or X to punch!] {Press Left/Right or X to punch!}
 [Press Shift Alt or Ctrl to play sounds!] {Press Shift Alt or Ctrl to play sounds!}
 [Press Space to start/stop music!] {Press Space to start/stop music!}
+[Press Z, Shift, or Ctrl to play sounds!] {Press Z, Shift, or Ctrl to play sounds!}
 [Welcome to the SDL2W Example!] {Welcome to the SDL2W Example!}
