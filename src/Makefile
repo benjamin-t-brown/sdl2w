@@ -89,10 +89,10 @@ else # native (default)
     CURRENT_FLAGS = $(CURRENT_COMPILE_FLAGS) # For .o compilation
 
     ifeq ($(MIYOOA30),true)
-        CURRENT_FLAGS += -DMIYOOA30 $$MARCH $$SDL_LIBS $$SDL_LIB_PATHS -Wno-psabi $$SDL_INCLUDE
+        CURRENT_FLAGS += -DMIYOOA30 $$SDL_LIBS $$SDL_LIB_PATHS -Wno-psabi $$SDL_INCLUDE
     endif
     ifeq ($(MIYOOMINI),true)
-        CURRENT_FLAGS += -DMIYOOA30 $$MARCH $$SDL_LIBS $$SDL_LIB_PATHS -Wno-psabi $$SDL_INCLUDE
+        CURRENT_FLAGS += -DMIYOOA30 $$SDL_LIBS $$SDL_LIB_PATHS -Wno-psabi $$SDL_INCLUDE
     endif
 
     CURRENT_LINK_FLAGS =
