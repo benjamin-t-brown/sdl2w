@@ -2,7 +2,6 @@
 #include "Defines.h"
 #include "Draw.h"
 #include "Logger.h"
-#include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -209,8 +208,7 @@ void AssetLoader::loadPicture(const std::string& name,
                     << path << ")" << Logger::endl;
     throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
   }
-  std::string preferredPath =
-      std::filesystem::path(path).make_preferred().string();
+  std::string preferredPath = path;
   picturePathToAlias[preferredPath] = name;
 
   SDL_Texture* tex = draw.createTexture(loadedImage);
