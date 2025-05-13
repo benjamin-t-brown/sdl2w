@@ -159,6 +159,16 @@ const Lib = {
       subscriptions[eventName].forEach((cb) => cb(...args));
     }
   },
+  getLabels() {
+    return {
+      tapToStart: 'Tap to start',
+      loading: 'Loading...',
+      error: 'Error loading game',
+      controls: 'Controls',
+      soundOn: 'Sound on',
+      soundOff: 'Sound off',
+    };
+  }
 };
 window.Lib = Lib;
 
