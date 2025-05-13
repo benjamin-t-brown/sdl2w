@@ -3,10 +3,9 @@
 #include "Draw.h"
 #include "Logger.h"
 #include <filesystem>
-#include <fstream> // Added fstream include for std::ifstream
-
-#include <map>     // Added map include
-#include <sstream> // Added sstream include for std::stringstream
+#include <fstream>
+#include <map>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -19,6 +18,7 @@
 #include <SDL_image.h>
 #include <SDL_mixer.h>
 #include <SDL_ttf.h>
+#include <cstring> // memcpy
 #else
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
