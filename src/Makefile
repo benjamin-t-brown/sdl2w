@@ -167,6 +167,9 @@ miyooa30:
 miyoomini:
 	@$(MAKE) all TARGET=native MIYOOMINI=true
 
+files:
+	@echo $(CLIENT_CODE) $(SHARED_CODE)
+
 all: dist
 
 # Ensure output directories exist
