@@ -89,9 +89,17 @@ else # native (default)
     CURRENT_FLAGS = $(CURRENT_COMPILE_FLAGS) # For .o compilation
 
     ifeq ($(MIYOOA30),true)
+        AS=arm-linux-gnueabihf-as
+        CC=arm-linux-gnueabihf-gcc
+        CXX=arm-linux-gnueabihf-g++
+        LD=arm-linux-gnueabihf-ld
         CURRENT_FLAGS += -DMIYOOA30 $$SDL_LIBS $$SDL_LIB_PATHS -Wno-psabi $$SDL_INCLUDE
     endif
     ifeq ($(MIYOOMINI),true)
+        AS=arm-linux-gnueabihf-as
+        CC=arm-linux-gnueabihf-gcc
+        CXX=arm-linux-gnueabihf-g++
+        LD=arm-linux-gnueabihf-ld
         CURRENT_FLAGS += -DMIYOOA30 $$SDL_LIBS $$SDL_LIB_PATHS -Wno-psabi $$SDL_INCLUDE
     endif
 
