@@ -1,6 +1,7 @@
 #include "Animation.h"
 #include "Draw.h"
 #include "Logger.h"
+#include "Store.h"
 
 namespace sdl2w {
 
@@ -33,6 +34,16 @@ Animation& Animation::operator=(const Animation& other) {
   loop = other.loop;
 
   return *this;
+}
+
+Animation::Animation(const AnimationDefinition& def, Store& store)
+    : name(""), t(0), totalDuration(0), spriteIndex(0), loop(true) {
+  for (const auto& spriteDef : def.sprites) {
+    Sprite& sprite = store.getSprite(spriteDef.name);
+    addSprite(spriteDef, sprite);
+  }
+  name = def.name;
+  loop = def.loop;
 }
 
 Animation::~Animation() {}

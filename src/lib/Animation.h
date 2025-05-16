@@ -6,6 +6,7 @@
 namespace sdl2w {
 struct AnimationDefinition;
 struct Sprite;
+class Store;
 
 struct AnimSpriteDefinition {
   std::string name = "";
@@ -33,6 +34,7 @@ struct Animation {
   ~Animation();
   Animation(const Animation& other);
   Animation& operator=(const Animation& other);
+  Animation(const AnimationDefinition& def, Store& store);
 
   bool isInitialized() const;
   const Sprite& getCurrentSprite() const;
