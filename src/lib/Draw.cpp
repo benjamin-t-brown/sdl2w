@@ -89,7 +89,7 @@ SDL_Surface* Draw::getRotatedSurface(SDL_Surface* originalSurface,
   keyStream << name << originalSurface->w << "," << originalSurface->h << ","
             << angleDeg << "," << params.clipX << "," << params.clipY << ","
             << params.clipW << "," << params.clipH << "," << params.scale.first
-            << "," << params.scale.second;
+            << "," << params.scale.second << "," << params.flipped;
   std::string key = keyStream.str();
 
   if (store.hasDynamicTextureOrSurface(key)) {
@@ -137,9 +137,7 @@ Draw::~Draw() {
   }
 }
 
-void Draw::drawTexture(SDL_Texture* tex,
-                       const RenderableParams& params,
-                       bool flipped) {
+void Draw::drawTexture(SDL_Texture* tex, const RenderableParams& params) {
   int width, height;
   SDL_QueryTexture(tex, nullptr, nullptr, &width, &height);
   drawTexture(tex,
@@ -153,13 +151,11 @@ void Draw::drawTexture(SDL_Texture* tex,
                .clipY = 0,
                .clipW = width,
                .clipH = height,
-               .centered = params.centered},
-              flipped);
+               .centered = params.centered,
+               .flipped = params.flipped});
 }
 
-void Draw::drawTexture(SDL_Texture* tex,
-                       const RenderableParamsEx& params,
-                       bool flipped) {
+void Draw::drawTexture(SDL_Texture* tex, const RenderableParamsEx& params) {
   SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
 
   auto [scaleLocal,
@@ -172,7 +168,8 @@ void Draw::drawTexture(SDL_Texture* tex,
         clipY,
         clipW,
         clipH,
-        centered] = params;
+        centered,
+        flipped] = params;
   SDL_SetTextureAlphaMod(tex, globalAlpha);
 
   SDL_RendererFlip flip = flipped ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
@@ -207,12 +204,23 @@ void Draw::drawSurface(SDL_Surface* surf, const RenderableParams& params) {
                .clipY = 0,
                .clipW = surf->w,
                .clipH = surf->h,
-               .centered = params.centered});
+               .centered = params.centered,
+               .flipped = params.flipped});
 }
 
 void Draw::drawSurface(SDL_Surface* surf, const RenderableParamsEx& params) {
-  auto [scale, angleDeg, x, y, w, h, clipX, clipY, clipW, clipH, centered] =
-      params;
+  auto [scale,
+        angleDeg,
+        x,
+        y,
+        w,
+        h,
+        clipX,
+        clipY,
+        clipW,
+        clipH,
+        centered,
+        flipped] = params;
 
   const double scaledW = static_cast<double>(w) * scale.first;
   const double scaledH = static_cast<double>(h) * scale.second;
@@ -240,8 +248,8 @@ void Draw::setSdlRenderer(SDL_Renderer* r,
                           int renderWidthA,
                           int renderHeightA,
                           Uint32 format) {
-  LOG(DEBUG) << "[sdl2w] Set sdlRenderer, renderW and renderH: "
-                  << renderWidthA << "," << renderHeightA << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Set sdlRenderer, renderW and renderH: " << renderWidthA
+             << "," << renderHeightA << Logger::endl;
   sdlRenderer = r;
   renderWidth = renderWidthA;
   renderHeight = renderHeightA;
@@ -292,7 +300,8 @@ void Draw::drawSprite(const Sprite& sprite, const RenderableParams& params) {
                    .clipY = sprite.y,
                    .clipW = sprite.w,
                    .clipH = sprite.h,
-                   .centered = params.centered});
+                   .centered = params.centered,
+                   .flipped = params.flipped});
 }
 
 // use this to extract sprite into RenderableParamsEx
@@ -308,7 +317,8 @@ void Draw::drawSprite(const Sprite& sprite, const RenderableParamsEx& params) {
                    .clipY = sprite.y,
                    .clipW = sprite.w,
                    .clipH = sprite.h,
-                   .centered = params.centered});
+                   .centered = params.centered,
+                   .flipped = params.flipped});
 }
 
 void Draw::drawSpriteInner(const Sprite& sprite,
@@ -325,7 +335,7 @@ void Draw::drawSpriteInner(const Sprite& sprite,
 
   if (mode == DrawMode::CPU) {
     RenderableParamsEx cpuParams = params;
-    if (sprite.flipped) {
+    if (params.flipped) {
       // instead of flipping the texture at draw time, the cpu method uses an
       // sdl surface, which is stored a flipped version of the whole
       // spritesheet. This means the draw function must also flip the
@@ -358,7 +368,7 @@ void Draw::drawSpriteInner(const Sprite& sprite,
       drawSurface(surf, cpuParams);
     }
   } else {
-    drawTexture(tex, params, sprite.flipped);
+    drawTexture(tex, params);
   }
 }
 
@@ -376,7 +386,8 @@ void Draw::drawAnimation(const Animation& anim,
                  .clipY = sprite.y,
                  .clipW = sprite.w,
                  .clipH = sprite.h,
-                 .centered = params.centered});
+                 .centered = params.centered,
+                 .flipped = params.flipped});
 }
 
 void Draw::drawAnimation(const Animation& anim,
@@ -384,17 +395,18 @@ void Draw::drawAnimation(const Animation& anim,
   if (anim.isInitialized()) {
     const Sprite& sprite = anim.getCurrentSprite();
     drawSpriteInner(sprite,
-               {.scale = params.scale,
-                .angleDeg = params.angleDeg,
-                .x = params.x,
-                .y = params.y,
-                .w = params.w,
-                .h = params.h,
-                .clipX = sprite.x,
-                .clipY = sprite.y,
-                .clipW = sprite.w,
-                .clipH = sprite.h,
-                .centered = params.centered});
+                    {.scale = params.scale,
+                     .angleDeg = params.angleDeg,
+                     .x = params.x,
+                     .y = params.y,
+                     .w = params.w,
+                     .h = params.h,
+                     .clipX = sprite.x,
+                     .clipY = sprite.y,
+                     .clipW = sprite.w,
+                     .clipH = sprite.h,
+                     .centered = params.centered,
+                     .flipped = params.flipped});
   } else {
     LOG_LINE(ERROR) << "Anim has not been initialized: '" << anim.toString()
                     << "'" << Logger::endl;

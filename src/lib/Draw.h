@@ -31,6 +31,7 @@ struct RenderableParamsEx {
   int clipW = 0;
   int clipH = 0;
   bool centered = true;
+  bool flipped = false;
 };
 
 struct RenderableParams {
@@ -38,6 +39,7 @@ struct RenderableParams {
   int x = 0;
   int y = 0;
   bool centered = true;
+  bool flipped = false;
 };
 
 struct RenderTextParams {
@@ -104,11 +106,9 @@ class Draw {
 
 public:
   void drawTexture(SDL_Texture* tex,
-                   const RenderableParams& params,
-                   bool flipped = false);
+                   const RenderableParams& params);
   void drawTexture(SDL_Texture* tex,
-                   const RenderableParamsEx& params,
-                   bool flipped = false);
+                   const RenderableParamsEx& params);
   void drawSurface(SDL_Surface* surf, const RenderableParams& params);
   void drawSurface(SDL_Surface* surf, const RenderableParamsEx& params);
 
