@@ -20,6 +20,7 @@ EventRoute::EventRoute() {
   onmousedown = [](int, int, int) {};
   onmouseup = [](int, int, int) {};
   onmousemove = [](int, int, int) {};
+  onmousewheel = [](int, int, int) {};
   onkeydown = [](const std::string&, int) {};
   onkeyup = [](const std::string&, int) {};
   onkeypress = [](const std::string&, int) {};
