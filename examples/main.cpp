@@ -13,7 +13,7 @@ void runProgram(int argc, char** argv) {
   sdl2w::Store store;
   sdl2w::Window window(store,
                        {
-                           .mode = sdl2w::DrawMode::CPU,
+                           .mode = sdl2w::DrawMode::GPU,
                            .title = "SDL2W Example",
                            .w = w,
                            .h = h,
@@ -143,6 +143,8 @@ void runProgram(int argc, char** argv) {
       // punch
       d.drawAnimation(kenAnims[kenDirection == 0 ? 3 : 2], kenRenderParams);
     }
+
+    d.drawRect(0, 0, 100, 100, {54, 52, 52, 255});
 
     d.drawSprite(window.getStore().getSprite("fractal_0"),
                  sdl2w::RenderableParamsEx{.scale = {2., 2.},

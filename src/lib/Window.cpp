@@ -144,7 +144,7 @@ void Window::init() {
   }
 
   // initialize audio
-  if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 1, 4096) < 0) {
+  if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 1, 1024) < 0) {
     LOG_LINE(ERROR) << "[sdl2w] SDL_mixer could not initialize! "
                     << std::string(Mix_GetError()) << Logger::endl;
     _soundEnabled = false;
