@@ -38,10 +38,10 @@ void notifyGameReady() {
   emscripten_run_script(script.c_str());
 #endif
 }
-void notifyGameCompleted(bool isVictory) {
+void notifyGameCompleted(const std::string& result) {
 #ifdef __EMSCRIPTEN__
-  const std::string script = std::string("window.Lib.notifyGameCompleted(" +
-                                         std::to_string(isVictory) + ")");
+  const std::string script = std::string("window.Lib.notifyGameCompleted('" +
+                                         result + "')");
   emscripten_run_script(script.c_str());
 #endif
 }
