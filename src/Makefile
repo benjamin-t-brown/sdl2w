@@ -32,9 +32,11 @@ ifeq ($(TARGET),wasm)
     LIBS = -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s USE_SDL_MIXER=2 -s SDL2_IMAGE_FORMATS='["png"]' -s USE_SDL_TTF=2 -s USE_SDL_GFX=2
     LIBS += $(EMCC_EXPORTED) -lidbfs.js
     CXX = em++
+    AR = emar
 else
     INCLUDES= -I.
     FLAGS= -Wall -std=c++17
+    AR = ar
     ifeq ($(OS),Windows_NT)
         LIBS = -mconsole -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
     else
@@ -95,7 +97,7 @@ $(DIRS_TO_CREATE):
 	@mkdir -p $@
 
 $(LIB_SDL2W): $(OBJECTS) | $(LIB_OUTPUT_DIR)
-	ar rcs $@ $(OBJECTS)
+	$(AR) rcs $@ $(OBJECTS)
 
 dist: $(LIB_SDL2W)
 	@echo "Creating library and headers for $(TARGET) at $(INSTALL_DIR)"
