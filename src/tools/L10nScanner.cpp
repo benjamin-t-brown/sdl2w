@@ -228,6 +228,16 @@ int main(int argc, char* argv[]) {
   for (const auto& entry :
        fs::recursive_directory_iterator(sourceScanDirectory)) {
     if (entry.is_regular_file()) {
+      std::string fullPathStr = entry.path().string();
+      std::string lowerFullPathStr = fullPathStr;
+      std::transform(lowerFullPathStr.begin(), lowerFullPathStr.end(), lowerFullPathStr.begin(),
+                     [](unsigned char c){ return std::tolower(c); });
+
+      if (lowerFullPathStr.find("test") != std::string::npos) {
+        std::cout << "Skipping (contains 'test'): " << fullPathStr << std::endl;
+        continue;
+      }
+
       std::string ext = entry.path().extension().string();
       if (ext == ".cpp" || ext == ".h" || ext == ".hpp") {
         scanFileForTranslations(entry.path(), allFoundOriginalStrings);

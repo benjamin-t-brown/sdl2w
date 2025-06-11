@@ -6,7 +6,6 @@
 #include <deque>
 #include <functional>
 #include <string>
-#include <unordered_map>
 
 namespace sdl2w {
 

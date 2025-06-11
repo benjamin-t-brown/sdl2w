@@ -1,21 +1,19 @@
-// This is a helper program for managing Sprite and Animation assets.  It shows what SDL2W
-// parsed from the asset file and shows every animation and sprite that was loaded.
+// This is a helper program for managing Sprite and Animation assets.  It shows
+// what SDL2W parsed from the asset file and shows every animation and sprite
+// that was loaded.
 
-#include "lib/Animation.h"
-#include "lib/AssetLoader.h"
-#include "lib/Defines.h"
-#include "lib/Draw.h"
-#include "lib/Logger.h"
-#include "lib/Window.h"
+#include "../lib/Animation.h"
+#include "../lib/AssetLoader.h"
+#include "../lib/Defines.h"
+#include "../lib/Draw.h"
+#include "../lib/Logger.h"
+#include "../lib/Window.h"
 #include <SDL2/SDL_rect.h>
 #include <algorithm>
 #include <filesystem>
+#include <iostream>
 #include <optional>
 #include <string>
-#include <string_view>
-
-constexpr std::string_view ASSETS_DIR = "assets";
-constexpr std::string_view ASSET_FILE_PATH = "assets/assets.txt";
 
 using namespace sdl2w;
 
@@ -36,12 +34,17 @@ struct State {
   UiState uiState = UI_SELECT_ASSET;
 };
 
-void reloadAssets(AssetLoader& assetLoader, Store& store) {
+void reloadAssets(AssetLoader& assetLoader,
+                  Store& store,
+                  const std::string& assetFilePath) {
   store.clear();
-  store.loadAndStoreFont("default", "assets/monofonto.ttf");
+  store.loadAndStoreFont(
+      "default",
+      "assets/monofonto.ttf"); // Assuming monofonto.ttf is still at a fixed
+                               // relative path or handled differently
   assetLoader.picturePathToAlias.clear();
   assetLoader.spriteNameToPictureAlias.clear();
-  assetLoader.loadAssetsFromFile(sdl2w::ASSET_FILE, std::string(ASSET_FILE_PATH));
+  assetLoader.loadAssetsFromFile(sdl2w::ASSET_FILE, assetFilePath);
 }
 
 std::vector<std::string> findFilesRecursive(const std::string& path,
@@ -304,14 +307,17 @@ std::vector<AnimationDefinition> getAnimationDefinitionsFromSpriteNames(
 
 //------------------------------------------------------------------------
 
-void runProgram(int argc, char** argv) {
+void runProgram(int argc,
+                char** argv,
+                const std::string& assetsDirPath,
+                const std::string& assetFilePath) {
   const int w = 1024;
   const int h = 768;
 
   State state;
-  state.pictures = findFilesRecursive(std::string(ASSETS_DIR), ".png");
+  state.pictures = findFilesRecursive(assetsDirPath, ".png");
   state.filteredPictures = state.pictures;
-  state.sounds = findFilesRecursive(std::string(ASSETS_DIR), ".wav");
+  state.sounds = findFilesRecursive(assetsDirPath, ".wav");
 
   ScrollableStringList pictureList(4, 50, w - 8, h - 50, 32);
   ScrollableStringList animList(4, 50, w / 2, h / 2 - 50, 32);
@@ -348,7 +354,7 @@ void runProgram(int argc, char** argv) {
   window.getDraw().setBackgroundColor({16, 30, 41});
 
   AssetLoader assetLoader(window.getDraw(), window.getStore());
-  reloadAssets(assetLoader, store);
+  reloadAssets(assetLoader, store, assetFilePath);
 
   auto& d = window.getDraw();
 
@@ -392,247 +398,293 @@ void runProgram(int argc, char** argv) {
         }
       });
 
-  window.getEvents().setMouseEvent(sdl2w::ON_MOUSE_WHEEL, [&](int x, int y, int wheelY) {
-    if (state.uiState == UI_SELECT_ASSET) {
-      pictureList.handleMouseWheel(x, y, wheelY);
-    } else if (state.uiState == UI_SHOW_ANIMS) {
-      animList.handleMouseWheel(x, y, wheelY);
-      spriteList.handleMouseWheel(x, y, wheelY);
-    }
-  });
-
-  window.getEvents().setMouseEvent(sdl2w::ON_MOUSE_DOWN, [&](int x, int y, int button) {
-    if (state.uiState == UI_SELECT_ASSET) {
-      reloadButton.handleMousedown(x, y, [&](const std::string&) {
-        LOG(INFO) << "Reloading assets..." << LOG_ENDL;
-        state.pictures = findFilesRecursive(std::string(ASSETS_DIR), ".png");
-        state.sounds = findFilesRecursive(std::string(ASSETS_DIR), ".wav");
-        reloadAssets(assetLoader, store);
-        state.filter = "";
-        state.filteredPictures.clear();
-        for (const auto& picture : state.pictures) {
-          std::string pictureLower = toLower(picture);
-          std::string filterLower = toLower(state.filter);
-          if (pictureLower.find(filterLower) != std::string::npos) {
-            state.filteredPictures.push_back(picture);
-          }
-        }
-        notifMessage = "Assets reloaded!";
-        notifTime = 0;
-      });
-      pictureList.handleMouseDown(x, y, [&](const std::string& str) {
-        state.selectedPicturePath = str;
-        state.selectedSpriteNames =
-            getSpriteNamesForPicture(assetLoader, state.selectedPicturePath);
-
-        std::sort(state.selectedSpriteNames.begin(),
-                  state.selectedSpriteNames.end(),
-                  naturalComparator);
-        state.selectedAnimDefinitions = getAnimationDefinitionsFromSpriteNames(
-            store, state.selectedSpriteNames);
-        state.selectedAnimNames.clear();
-        for (const auto& animDef : state.selectedAnimDefinitions) {
-          state.selectedAnimNames.push_back(animDef.name);
-        }
-        std::sort(state.selectedAnimNames.begin(),
-                  state.selectedAnimNames.end(),
-                  naturalComparator);
-        state.uiState = UI_SHOW_ANIMS;
-      });
-    } else if (state.uiState == UI_SHOW_ANIMS) {
-      backButton.handleMousedown(x, y, [&](const std::string&) {
-        showAnimListScreen(state);
-        animList.focusValue.clear();
-      });
-      X1Button.handleMousedown(
-          x, y, [&](const std::string&) { state.scale = 1.; });
-      X2Button.handleMousedown(
-          x, y, [&](const std::string&) { state.scale = 2.; });
-      X3Button.handleMousedown(
-          x, y, [&](const std::string&) { state.scale = 3.; });
-      X4Button.handleMousedown(
-          x, y, [&](const std::string&) { state.scale = 4.; });
-      X5Button.handleMousedown(
-          x, y, [&](const std::string&) { state.scale = 5.; });
-      X6Button.handleMousedown(
-          x, y, [&](const std::string&) { state.scale = 6.; });
-      X7Button.handleMousedown(
-          x, y, [&](const std::string&) { state.scale = 7.; });
-      X8Button.handleMousedown(
-          x, y, [&](const std::string&) { state.scale = 8.; });
-      playButton.handleMousedown(x, y, [&](const std::string&) {
-        if (state.selectedAnim.has_value()) {
-          auto& anim = state.selectedAnim.value();
-          if (anim.isInitialized()) {
-            anim.start();
-          }
+  window.getEvents().setMouseEvent(
+      sdl2w::ON_MOUSE_WHEEL, [&](int x, int y, int wheelY) {
+        if (state.uiState == UI_SELECT_ASSET) {
+          pictureList.handleMouseWheel(x, y, wheelY);
+        } else if (state.uiState == UI_SHOW_ANIMS) {
+          animList.handleMouseWheel(x, y, wheelY);
+          spriteList.handleMouseWheel(x, y, wheelY);
         }
       });
-      reloadButton.handleMousedown(x, y, [&](const std::string&) {
-        LOG(INFO) << "Reloading assets..." << LOG_ENDL;
-        state.pictures = findFilesRecursive(std::string(ASSETS_DIR), ".png");
-        state.filteredPictures = state.pictures;
-        state.sounds = findFilesRecursive(std::string(ASSETS_DIR), ".wav");
-        reloadAssets(assetLoader, store);
-        state.selectedAnimNames.clear();
-        state.selectedAnimDefinitions.clear();
 
-        const std::string selectedPicturePath = state.selectedPicturePath;
-        state.selectedSpriteNames =
-            getSpriteNamesForPicture(assetLoader, selectedPicturePath);
-        state.selectedAnimDefinitions = getAnimationDefinitionsFromSpriteNames(
-            store, state.selectedSpriteNames);
-        for (const auto& animDef : state.selectedAnimDefinitions) {
-          state.selectedAnimNames.push_back(animDef.name);
+  window.getEvents().setMouseEvent(
+      sdl2w::ON_MOUSE_DOWN, [&](int x, int y, int button) {
+        if (state.uiState == UI_SELECT_ASSET) {
+          reloadButton.handleMousedown(x, y, [&](const std::string&) {
+            LOG(INFO) << "Reloading assets..." << LOG_ENDL;
+            state.pictures = findFilesRecursive(assetsDirPath, ".png");
+            state.sounds = findFilesRecursive(assetsDirPath, ".wav");
+            reloadAssets(assetLoader, store, assetFilePath);
+            state.filter = "";
+            state.filteredPictures.clear();
+            for (const auto& picture : state.pictures) {
+              std::string pictureLower = toLower(picture);
+              std::string filterLower = toLower(state.filter);
+              if (pictureLower.find(filterLower) != std::string::npos) {
+                state.filteredPictures.push_back(picture);
+              }
+            }
+            notifMessage = "Assets reloaded!";
+            notifTime = 0;
+          });
+          pictureList.handleMouseDown(x, y, [&](const std::string& str) {
+            state.selectedPicturePath = str;
+            state.selectedSpriteNames = getSpriteNamesForPicture(
+                assetLoader, state.selectedPicturePath);
+
+            std::sort(state.selectedSpriteNames.begin(),
+                      state.selectedSpriteNames.end(),
+                      naturalComparator);
+            state.selectedAnimDefinitions =
+                getAnimationDefinitionsFromSpriteNames(
+                    store, state.selectedSpriteNames);
+            state.selectedAnimNames.clear();
+            for (const auto& animDef : state.selectedAnimDefinitions) {
+              state.selectedAnimNames.push_back(animDef.name);
+            }
+            std::sort(state.selectedAnimNames.begin(),
+                      state.selectedAnimNames.end(),
+                      naturalComparator);
+            state.uiState = UI_SHOW_ANIMS;
+          });
+        } else if (state.uiState == UI_SHOW_ANIMS) {
+          backButton.handleMousedown(x, y, [&](const std::string&) {
+            showAnimListScreen(state);
+            animList.focusValue.clear();
+          });
+          X1Button.handleMousedown(
+              x, y, [&](const std::string&) { state.scale = 1.; });
+          X2Button.handleMousedown(
+              x, y, [&](const std::string&) { state.scale = 2.; });
+          X3Button.handleMousedown(
+              x, y, [&](const std::string&) { state.scale = 3.; });
+          X4Button.handleMousedown(
+              x, y, [&](const std::string&) { state.scale = 4.; });
+          X5Button.handleMousedown(
+              x, y, [&](const std::string&) { state.scale = 5.; });
+          X6Button.handleMousedown(
+              x, y, [&](const std::string&) { state.scale = 6.; });
+          X7Button.handleMousedown(
+              x, y, [&](const std::string&) { state.scale = 7.; });
+          X8Button.handleMousedown(
+              x, y, [&](const std::string&) { state.scale = 8.; });
+          playButton.handleMousedown(x, y, [&](const std::string&) {
+            if (state.selectedAnim.has_value()) {
+              auto& anim = state.selectedAnim.value();
+              if (anim.isInitialized()) {
+                anim.start();
+              }
+            }
+          });
+          reloadButton.handleMousedown(x, y, [&](const std::string&) {
+            LOG(INFO) << "Reloading assets..." << LOG_ENDL;
+            state.pictures = findFilesRecursive(assetsDirPath, ".png");
+            state.filteredPictures = state.pictures;
+            state.sounds = findFilesRecursive(assetsDirPath, ".wav");
+            reloadAssets(assetLoader, store, assetFilePath);
+            state.selectedAnimNames.clear();
+            state.selectedAnimDefinitions.clear();
+
+            const std::string selectedPicturePath = state.selectedPicturePath;
+            state.selectedSpriteNames =
+                getSpriteNamesForPicture(assetLoader, selectedPicturePath);
+            state.selectedAnimDefinitions =
+                getAnimationDefinitionsFromSpriteNames(
+                    store, state.selectedSpriteNames);
+            for (const auto& animDef : state.selectedAnimDefinitions) {
+              state.selectedAnimNames.push_back(animDef.name);
+            }
+            std::sort(state.selectedAnimNames.begin(),
+                      state.selectedAnimNames.end());
+            if (state.selectedAnim.has_value()) {
+              try {
+                state.selectedAnim =
+                    store.createAnimation(state.selectedAnim.value().name);
+              } catch (const std::exception& e) {
+                LOG(WARN) << "Resetting animation which was not found: "
+                          << e.what() << LOG_ENDL;
+                state.selectedAnim.reset();
+              }
+            }
+            if (state.selectedSpriteName.size() > 0) {
+              try {
+                store.getSprite(state.selectedSpriteName);
+              } catch (const std::exception& e) {
+                LOG(WARN) << "Resetting sprite which was not found: "
+                          << e.what() << LOG_ENDL;
+                state.selectedSpriteName.clear();
+              }
+            }
+            notifMessage = "Assets reloaded!";
+            notifTime = 0;
+          });
+
+          animList.handleMouseDown(x, y, [&](const std::string& str) {
+            auto it = std::find_if(state.selectedAnimDefinitions.begin(),
+                                   state.selectedAnimDefinitions.end(),
+                                   [&](AnimationDefinition& animDef) {
+                                     return animDef.name == str;
+                                   });
+            if (it != state.selectedAnimDefinitions.end()) {
+              auto& animDef = *it;
+              animList.focusValue = animDef.name;
+              state.selectedAnim = store.createAnimation(animDef.name);
+            }
+          });
+          spriteList.handleMouseDown(x, y, [&](const std::string& str) {
+            auto it = std::find_if(state.selectedSpriteNames.begin(),
+                                   state.selectedSpriteNames.end(),
+                                   [&](const std::string& spriteName) {
+                                     return spriteName == str;
+                                   });
+            if (it != state.selectedSpriteNames.end()) {
+              spriteList.focusValue = str;
+              state.selectedSpriteName = str;
+              LOG(INFO) << "Selected sprite: " << str << LOG_ENDL;
+            }
+          });
         }
-        std::sort(state.selectedAnimNames.begin(),
-                  state.selectedAnimNames.end());
-        if (state.selectedAnim.has_value()) {
-          try {
-            state.selectedAnim =
-                store.createAnimation(state.selectedAnim.value().name);
-          } catch (const std::exception& e) {
-            LOG(WARN) << "Resetting animation which was not found: " << e.what()
-                      << LOG_ENDL;
-            state.selectedAnim.reset();
-          }
-        }
-        if (state.selectedSpriteName.size() > 0) {
-          try {
-            store.getSprite(state.selectedSpriteName);
-          } catch (const std::exception& e) {
-            LOG(WARN) << "Resetting sprite which was not found: " << e.what()
-                      << LOG_ENDL;
-            state.selectedSpriteName.clear();
-          }
-        }
-        notifMessage = "Assets reloaded!";
-        notifTime = 0;
       });
 
-      animList.handleMouseDown(x, y, [&](const std::string& str) {
-        auto it = std::find_if(
-            state.selectedAnimDefinitions.begin(),
-            state.selectedAnimDefinitions.end(),
-            [&](AnimationDefinition& animDef) { return animDef.name == str; });
-        if (it != state.selectedAnimDefinitions.end()) {
-          auto& animDef = *it;
-          animList.focusValue = animDef.name;
-          state.selectedAnim = store.createAnimation(animDef.name);
+  window.getEvents().setMouseEvent(
+      sdl2w::ON_MOUSE_MOVE, [&](int x, int y, int button) {
+        if (state.uiState == UI_SELECT_ASSET) {
+          pictureList.handleMouseMove(x, y);
+        } else if (state.uiState == UI_SHOW_ANIMS) {
+          animList.handleMouseMove(x, y);
+          spriteList.handleMouseMove(x, y);
         }
       });
-      spriteList.handleMouseDown(x, y, [&](const std::string& str) {
-        auto it = std::find_if(
-            state.selectedSpriteNames.begin(),
-            state.selectedSpriteNames.end(),
-            [&](const std::string& spriteName) { return spriteName == str; });
-        if (it != state.selectedSpriteNames.end()) {
-          spriteList.focusValue = str;
-          state.selectedSpriteName = str;
-          LOG(INFO) << "Selected sprite: " << str << LOG_ENDL;
-        }
-      });
-    }
-  });
 
-  window.getEvents().setMouseEvent(sdl2w::ON_MOUSE_MOVE, [&](int x, int y, int button) {
-    if (state.uiState == UI_SELECT_ASSET) {
-      pictureList.handleMouseMove(x, y);
-    } else if (state.uiState == UI_SHOW_ANIMS) {
-      animList.handleMouseMove(x, y);
-      spriteList.handleMouseMove(x, y);
-    }
-  });
+  window.startRenderLoop(
+      []() { return true; },
+      []() {},
+      [&]() {
+        if (state.uiState == UI_SELECT_ASSET) {
+          d.drawText(
+              state.filter.size() > 0 ? state.filter : "<type for filter>",
+              sdl2w::RenderTextParams{
+                  .fontName = "default",
+                  .fontSize = sdl2w::TEXT_SIZE_28,
+                  .x = 4,
+                  .y = 4,
+                  .color = state.filter.size() ? SDL_Color{255, 255, 255}
+                                               : SDL_Color{100, 100, 100},
+                  .centered = false,
+              });
+          pictureList.render(d, state.filteredPictures);
+          reloadButton.render(d);
 
-  window.startRenderLoop([&]() {
-    if (state.uiState == UI_SELECT_ASSET) {
-      d.drawText(state.filter.size() > 0 ? state.filter : "<type for filter>",
-                 sdl2w::RenderTextParams{
-                     .fontName = "default",
-                     .fontSize = sdl2w::TEXT_SIZE_28,
-                     .x = 4,
-                     .y = 4,
-                     .color = state.filter.size() ? SDL_Color{255, 255, 255}
-                                                  : SDL_Color{100, 100, 100},
-                     .centered = false,
-                 });
-      pictureList.render(d, state.filteredPictures);
-      reloadButton.render(d);
-
-    } else if (state.uiState == UI_SHOW_ANIMS) {
-      d.drawText("-> " + state.selectedPicturePath,
-                 sdl2w::RenderTextParams{
-                     .fontName = "default",
-                     .fontSize = sdl2w::TEXT_SIZE_28,
-                     .x = 4,
-                     .y = 4,
-                     .color = {100, 100, 255},
-                 });
-
-      if (state.selectedAnim.has_value()) {
-        auto& anim = state.selectedAnim.value();
-        anim.update(window.getDeltaTime());
-        d.drawAnimation(anim,
-                        sdl2w::RenderableParams{
-                            .scale = {state.scale, state.scale},
-                            .x = w / 2 + w / 4,
-                            .y = h / 2 - h / 4,
-                            .centered = true,
-                        });
-      }
-      if (state.selectedSpriteName.size() > 0) {
-        Sprite& sprite = store.getSprite(state.selectedSpriteName);
-        d.drawSprite(sprite,
-                     sdl2w::RenderableParams{
-                         .scale = {state.scale, state.scale},
-                         .x = w / 2 + w / 4,
-                         .y = h / 2 + h / 4,
-                         .centered = true,
+        } else if (state.uiState == UI_SHOW_ANIMS) {
+          d.drawText("-> " + state.selectedPicturePath,
+                     sdl2w::RenderTextParams{
+                         .fontName = "default",
+                         .fontSize = sdl2w::TEXT_SIZE_28,
+                         .x = 4,
+                         .y = 4,
+                         .color = {100, 100, 255},
                      });
-      }
 
-      backButton.render(d);
-      playButton.render(d);
-      reloadButton.render(d);
+          if (state.selectedAnim.has_value()) {
+            auto& anim = state.selectedAnim.value();
+            anim.update(window.getDeltaTime());
+            d.drawAnimation(anim,
+                            sdl2w::RenderableParams{
+                                .scale = {state.scale, state.scale},
+                                .x = w / 2 + w / 4,
+                                .y = h / 2 - h / 4,
+                                .centered = true,
+                            });
+          }
+          if (state.selectedSpriteName.size() > 0) {
+            Sprite& sprite = store.getSprite(state.selectedSpriteName);
+            d.drawSprite(sprite,
+                         sdl2w::RenderableParams{
+                             .scale = {state.scale, state.scale},
+                             .x = w / 2 + w / 4,
+                             .y = h / 2 + h / 4,
+                             .centered = true,
+                         });
+          }
 
-      animList.render(d, state.selectedAnimNames);
-      spriteList.render(d, state.selectedSpriteNames);
-      X1Button.render(d);
-      X2Button.render(d);
-      X3Button.render(d);
-      X4Button.render(d);
-      X5Button.render(d);
-      X6Button.render(d);
-      X7Button.render(d);
-      X8Button.render(d);
+          backButton.render(d);
+          playButton.render(d);
+          reloadButton.render(d);
 
-    }
+          animList.render(d, state.selectedAnimNames);
+          spriteList.render(d, state.selectedSpriteNames);
+          X1Button.render(d);
+          X2Button.render(d);
+          X3Button.render(d);
+          X4Button.render(d);
+          X5Button.render(d);
+          X6Button.render(d);
+          X7Button.render(d);
+          X8Button.render(d);
+        }
 
-    if (notifMessage.size()) {
-      notifTime += window.getDeltaTime();
-      if (notifTime > notifDuration) {
-        notifMessage = "";
-      } else {
-        d.drawText(notifMessage, RenderTextParams{
-          .fontName = "default",
-          .fontSize = sdl2w::TEXT_SIZE_36,
-          .x = w / 2,
-          .y = 40,
-          .color = {100, 255, 100},
-          .centered = true,
-        });
-      }
-    }
-    return true;
-  });
+        if (notifMessage.size()) {
+          notifTime += window.getDeltaTime();
+          if (notifTime > notifDuration) {
+            notifMessage = "";
+          } else {
+            d.drawText(notifMessage,
+                       RenderTextParams{
+                           .fontName = "default",
+                           .fontSize = sdl2w::TEXT_SIZE_36,
+                           .x = w / 2,
+                           .y = 40,
+                           .color = {100, 255, 100},
+                           .centered = true,
+                       });
+          }
+        }
+        return true;
+      });
 }
 
 int main(int argc, char** argv) {
   LOG(INFO) << "Start program" << LOG_ENDL;
+
+  std::string assetsDirPathStr;
+  std::string assetFilePathStr;
+
+  for (int i = 1; i < argc; ++i) {
+    std::string arg = argv[i];
+    if (arg == "--assets-dir" && i + 1 < argc) {
+      assetsDirPathStr = argv[++i];
+    } else if (arg == "--asset-file" && i + 1 < argc) {
+      assetFilePathStr = argv[++i];
+    }
+  }
+
+  if (assetsDirPathStr.empty()) {
+    std::cerr << "Error: --assets-dir <path> is a required argument."
+              << std::endl;
+    std::cerr << "Usage: " << argv[0]
+              << " --assets-dir <path> --asset-file <path>" << std::endl;
+    return 1;
+  }
+  if (assetFilePathStr.empty()) {
+    std::cerr << "Error: --asset-file <path> is a required argument."
+              << std::endl;
+    std::cerr << "Usage: " << argv[0]
+              << " --assets-dir <path> --asset-file <path>" << std::endl;
+    return 1;
+  }
+
+  // You might want to convert to absolute paths or ensure they exist here
+  // For example:
+  // fs::path assetsDir = fs::absolute(fs::path(assetsDirPathStr));
+  // fs::path assetFile = fs::absolute(fs::path(assetFilePathStr));
+  // if (!fs::exists(assetsDir) || !fs::is_directory(assetsDir)) { ... }
+  // if (!fs::exists(assetFile) || !fs::is_regular_file(assetFile)) { ... }
+
   sdl2w::Window::init();
   srand(time(NULL));
 
-  runProgram(argc, argv);
+  runProgram(argc, argv, assetsDirPathStr, assetFilePathStr);
 
   sdl2w::Window::unInit();
   LOG(INFO) << "End program" << LOG_ENDL;

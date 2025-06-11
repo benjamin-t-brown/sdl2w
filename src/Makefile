@@ -106,19 +106,21 @@ dist: $(LIB_SDL2W)
 	cp -f $(HEADER_SRC_DIR)/*.h $(INSTALL_DIR)/include
 	@echo "Created $(TARGET) sdl2w folder at top level directory."
 
-tools: L10nScanner Anims
+tools: $(LIB_SDL2W) L10nScanner Anims
+	mv Anims* build/tools/
+	mv L10nScanner* build/tools/
 
 Anims: tools/Anims.cpp $(ALL_CLIENT_OBJECTS)
-	$(CXX) $(FLAGS) $< $(filter %.o,$^) -o $@ $(LIBS)
+	$(CXX) $(FLAGS) $(INCLUDES) $(OBJECTS) $< $(filter %.o,$^) -o $@ $(LIBS)
 
 L10nScanner: tools/L10nScanner.cpp 
-	$(CXX) $(FLAGS) $< -o $@
+	$(CXX) $(FLAGS) $(INCLUDES) $< -o $@
 
 -include $(DEPENDS)
 
 $(OBJ_OUTPUT_DIR)/%.o: %.cpp | $(DIRS_TO_CREATE)
 	@mkdir -p $(@D)
-	$(CXX) $(FLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
+	$(CXX) $(FLAGS) $(INCLUDES) -MMD -MP -c $< -o $@ $(LIBS)
 
 clean:
 	@echo "Cleaning for all targets..."
