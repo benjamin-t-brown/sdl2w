@@ -10,4 +10,5 @@ void setEmscriptenWindow(sdl2w::Window* window);
 void notifyGameStarted();
 void notifyGameReady();
 void notifyGameCompleted(const std::string& result);
+void notifyGameGeneric(const std::string& payload);
 } // namespace emshelpers

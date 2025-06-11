@@ -45,6 +45,14 @@ void notifyGameCompleted(const std::string& result) {
   emscripten_run_script(script.c_str());
 #endif
 }
+void notifyGameGeneric(const std::string& payload)
+{
+ #ifdef __EMSCRIPTEN__
+  const std::string script = std::string("window.Lib.notifyGameGeneric('" +
+                                         payload + "')");
+  emscripten_run_script(script.c_str());
+#endif 
+}
 } // namespace emshelpers
 
 #ifdef __EMSCRIPTEN__

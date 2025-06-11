@@ -118,7 +118,7 @@ L10nScanner: tools/L10nScanner.cpp
 
 $(OBJ_OUTPUT_DIR)/%.o: %.cpp | $(DIRS_TO_CREATE)
 	@mkdir -p $(@D)
-	$(CXX) $(FLAGS) -MMD -MP -c $< -o $@
+	$(CXX) $(FLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
 
 clean:
 	@echo "Cleaning for all targets..."
