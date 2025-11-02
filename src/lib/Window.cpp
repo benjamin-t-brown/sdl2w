@@ -38,8 +38,8 @@ Window::Window(Store& store, const Window2Params& params)
     return;
   }
 
-  LOG(DEBUG) << "[sdl2w] Create window:" << " " << params.w << " " << params.h
-             << Logger::endl;
+  LOG(DEBUG) << "[sdl2w] Create window:"
+             << " " << params.w << " " << params.h << Logger::endl;
 
   // create window and renderer
   sdlWindow = SDL_CreateWindow(params.title.c_str(),
@@ -55,6 +55,9 @@ Window::Window(Store& store, const Window2Params& params)
   draw.setSdlRenderer(sdlRenderer, params.renderW, params.renderH, format);
 
   Mix_AllocateChannels(numSoundChannels);
+
+  windowWidth = params.w;
+  windowHeight = params.h;
 
   AssetLoader::initFs();
 
@@ -133,8 +136,10 @@ void Window::init() {
 
   LOG(DEBUG) << "[sdl2w] Init SDL" << Logger::endl;
 
-  SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
-           SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+  // SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
+  //          SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+
+  SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
   // initialize fonts
   if (TTF_Init() < 0) {

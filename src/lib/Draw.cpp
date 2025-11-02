@@ -26,39 +26,39 @@ namespace sdl2w {
 
 // https://gist.github.com/Gumichan01/332c26f6197a432db91cc4327fcabb1c
 int SDL_RenderDrawCircle(SDL_Renderer* renderer, int x, int y, int radius) {
-  int offsetx, offsety, d;
+  int offsetX, offsetY, d;
   int status;
 
-  offsetx = 0;
-  offsety = radius;
+  offsetX = 0;
+  offsetY = radius;
   d = radius - 1;
   status = 0;
 
-  while (offsety >= offsetx) {
-    status += SDL_RenderDrawPoint(renderer, x + offsetx, y + offsety);
-    status += SDL_RenderDrawPoint(renderer, x + offsety, y + offsetx);
-    status += SDL_RenderDrawPoint(renderer, x - offsetx, y + offsety);
-    status += SDL_RenderDrawPoint(renderer, x - offsety, y + offsetx);
-    status += SDL_RenderDrawPoint(renderer, x + offsetx, y - offsety);
-    status += SDL_RenderDrawPoint(renderer, x + offsety, y - offsetx);
-    status += SDL_RenderDrawPoint(renderer, x - offsetx, y - offsety);
-    status += SDL_RenderDrawPoint(renderer, x - offsety, y - offsetx);
+  while (offsetY >= offsetX) {
+    status += SDL_RenderDrawPoint(renderer, x + offsetX, y + offsetY);
+    status += SDL_RenderDrawPoint(renderer, x + offsetY, y + offsetX);
+    status += SDL_RenderDrawPoint(renderer, x - offsetX, y + offsetY);
+    status += SDL_RenderDrawPoint(renderer, x - offsetY, y + offsetX);
+    status += SDL_RenderDrawPoint(renderer, x + offsetX, y - offsetY);
+    status += SDL_RenderDrawPoint(renderer, x + offsetY, y - offsetX);
+    status += SDL_RenderDrawPoint(renderer, x - offsetX, y - offsetY);
+    status += SDL_RenderDrawPoint(renderer, x - offsetY, y - offsetX);
 
     if (status < 0) {
       status = -1;
       break;
     }
 
-    if (d >= 2 * offsetx) {
-      d -= 2 * offsetx + 1;
-      offsetx += 1;
-    } else if (d < 2 * (radius - offsety)) {
-      d += 2 * offsety - 1;
-      offsety -= 1;
+    if (d >= 2 * offsetX) {
+      d -= 2 * offsetX + 1;
+      offsetX += 1;
+    } else if (d < 2 * (radius - offsetY)) {
+      d += 2 * offsetY - 1;
+      offsetY -= 1;
     } else {
-      d += 2 * (offsety - offsetx - 1);
-      offsety -= 1;
-      offsetx += 1;
+      d += 2 * (offsetY - offsetX - 1);
+      offsetY -= 1;
+      offsetX += 1;
     }
   }
 
@@ -66,44 +66,52 @@ int SDL_RenderDrawCircle(SDL_Renderer* renderer, int x, int y, int radius) {
 }
 
 int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius) {
-  int offsetx, offsety, d;
+  int offsetX, offsetY, d;
   int status;
 
-  offsetx = 0;
-  offsety = radius;
+  offsetX = 0;
+  offsetY = radius;
   d = radius - 1;
   status = 0;
 
-  while (offsety >= offsetx) {
+  while (offsetY >= offsetX) {
 
     status += SDL_RenderDrawLine(
-        renderer, x - offsety, y + offsetx, x + offsety, y + offsetx);
+        renderer, x - offsetY, y + offsetX, x + offsetY, y + offsetX);
     status += SDL_RenderDrawLine(
-        renderer, x - offsetx, y + offsety, x + offsetx, y + offsety);
+        renderer, x - offsetX, y + offsetY, x + offsetX, y + offsetY);
     status += SDL_RenderDrawLine(
-        renderer, x - offsetx, y - offsety, x + offsetx, y - offsety);
+        renderer, x - offsetX, y - offsetY, x + offsetX, y - offsetY);
     status += SDL_RenderDrawLine(
-        renderer, x - offsety, y - offsetx, x + offsety, y - offsetx);
+        renderer, x - offsetY, y - offsetX, x + offsetY, y - offsetX);
 
     if (status < 0) {
       status = -1;
       break;
     }
 
-    if (d >= 2 * offsetx) {
-      d -= 2 * offsetx + 1;
-      offsetx += 1;
-    } else if (d < 2 * (radius - offsety)) {
-      d += 2 * offsety - 1;
-      offsety -= 1;
+    if (d >= 2 * offsetX) {
+      d -= 2 * offsetX + 1;
+      offsetX += 1;
+    } else if (d < 2 * (radius - offsetY)) {
+      d += 2 * offsetY - 1;
+      offsetY -= 1;
     } else {
-      d += 2 * (offsety - offsetx - 1);
-      offsety -= 1;
-      offsetx += 1;
+      d += 2 * (offsetY - offsetX - 1);
+      offsetY -= 1;
+      offsetX += 1;
     }
   }
 
   return status;
+}
+
+std::pair<int, int> Draw::measureText(const std::string& text,
+                                      const RenderTextParams& params) {
+  TTF_Font* font = store.getFont(params.fontName, params.fontSize);
+  int ww = 0, hh = 0;
+  TTF_SizeUTF8(font, text.c_str(), &ww, &hh);
+  return {ww, hh};
 }
 
 Renderable Draw::getTextRenderable(const std::string& text,
@@ -118,8 +126,7 @@ Renderable Draw::getTextRenderable(const std::string& text,
   }
 
   TTF_Font* font = store.getFont(params.fontName, params.fontSize);
-  int ww = 0, hh = 0;
-  TTF_SizeUTF8(font, text.c_str(), &ww, &hh);
+  auto [ww, hh] = measureText(text, params);
   SDL_Surface* blitSurface = SDL_CreateRGBSurface(0,
                                                   ww,
                                                   hh,

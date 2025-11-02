@@ -2,7 +2,6 @@
 
 #include "Draw.h"
 #include "Store.h"
-#include <future>
 #include <string>
 
 namespace sdl2w {
@@ -56,6 +55,11 @@ public:
   void loadAssetsFromFile(AssetFileType type, const std::string& path);
 };
 
+std::string slice(const std::string& str, int start, int end);
+std::string trim(const std::string& str);
+void split(const std::string& str,
+           const std::string& delimiter,
+           std::vector<std::string>& out);
 std::string loadFileAsString(const std::string& path);
 void saveFileAsString(const std::string& path, const std::string& content);
 

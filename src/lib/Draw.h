@@ -134,6 +134,8 @@ public:
   void drawAnimation(const Animation& anim, const RenderableParams& params);
   void drawAnimation(const Animation& anim, const RenderableParamsEx& params);
   void drawText(const std::string& text, const RenderTextParams& params);
+  std::pair<int, int> measureText(const std::string& text,
+                                  const RenderTextParams& params);
   void drawRect(int x, int y, int w, int h, const SDL_Color& color);
   void drawCircle(
       int x, int y, int radius, const SDL_Color& color, bool filled = true);

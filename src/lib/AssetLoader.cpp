@@ -184,8 +184,9 @@ void AssetLoader::initFs() {
     FS.syncfs(
         true, function(err) {
           if (err) {
-            console.error("[sdl2w console] Error loading filesystem from IndexedDB:",
-                          err);
+            console.error(
+                "[sdl2w console] Error loading filesystem from IndexedDB:",
+                err);
             _fs_init_complete(0);
           } else {
             console.log("[sdl2w console] Filesystem loaded from IndexedDB");
@@ -360,6 +361,7 @@ void AssetLoader::loadSpriteAssetsFromFile(const std::string& path) {
                     << Logger::endl;
   }
 }
+
 void AssetLoader::loadAnimationAssetsFromFile(const std::string& path) {
   LOG(DEBUG) << "[sdl2w] Loading anim assets from file "
              << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
@@ -674,7 +676,9 @@ std::string loadFileAsString(const std::string& path) {
 void saveFileAsString(const std::string& path, const std::string& content) {
 #ifdef __EMSCRIPTEN__
   std::stringstream transformPath;
-  transformPath << "/" << "sdl2wdata" << "/" << path;
+  transformPath << "/"
+                << "sdl2wdata"
+                << "/" << path;
   LOG(DEBUG) << "[sdl2w] Saving file " << transformPath.str() << Logger::endl;
   std::ofstream file(transformPath.str());
 #else
