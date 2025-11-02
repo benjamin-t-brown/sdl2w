@@ -7,15 +7,20 @@ struct SDL_Renderer;
 struct SDL_Texture;
 struct SDL_Surface;
 struct Mix_Chunk;
+#ifdef __APPLE__
+typedef struct TTF_Font TTF_Font;
+typedef struct Mix_Music Mix_Music;
+#else
 typedef struct _TTF_Font TTF_Font;
 typedef struct _Mix_Music Mix_Music;
+#endif
 typedef struct _SDL_Joystick SDL_Joystick;
 
 namespace sdl2w {
-constexpr std::string_view SPRITE_FLIPPED = "_f";
-constexpr std::string_view FAIL_ERROR_TEXT = "sdl2w fail";
-constexpr std::string_view INDEXDB_PREFIX = "sdl2wdata";
-constexpr std::string_view ASSETS_PREFIX = "";
+const std::string_view SPRITE_FLIPPED{"_f"};
+const std::string_view FAIL_ERROR_TEXT{"sdl2w fail"};
+const std::string_view INDEXDB_PREFIX{"sdl2wdata"};
+const std::string_view ASSETS_PREFIX{""};
 
 enum TextSize {
   TEXT_SIZE_10 = 10,
