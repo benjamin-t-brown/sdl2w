@@ -2,7 +2,7 @@
 
 SDL2W - SDL2 Wrapper
 
-This is a minimalistic C++17 library which wraps SDL2 functionality and includes the following features:
+This is an opinionated C++17 library which wraps SDL2 functionality and includes the following features:
 
 - Window and Renderer creation
   - GPU Mode
