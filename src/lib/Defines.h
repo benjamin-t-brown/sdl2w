@@ -11,8 +11,8 @@ struct Mix_Chunk;
 typedef struct TTF_Font TTF_Font;
 typedef struct Mix_Music Mix_Music;
 #else
-typedef struct _TTF_Font TTF_Font;
-typedef struct _Mix_Music Mix_Music;
+typedef struct TTF_Font TTF_Font;
+typedef struct Mix_Music Mix_Music;
 #endif
 typedef struct _SDL_Joystick SDL_Joystick;
 
