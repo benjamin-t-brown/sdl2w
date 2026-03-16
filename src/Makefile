@@ -25,6 +25,13 @@ EMCC_EXPORTED=\
 ]'\
 -s EXPORTED_RUNTIME_METHODS=['ccall']
 
+# On Windows, parallel make + g++ can emit \r and interleave output, showing as garbage (♪◙). Use V=1 to see full commands.
+ifeq ($(V),1)
+  Q =
+else
+  Q = @
+endif
+
 LIBS_PLUS=
 DEBUG=true
 ifeq ($(TARGET),wasm)
