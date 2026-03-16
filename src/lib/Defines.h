@@ -14,8 +14,8 @@ typedef struct _Mix_Music Mix_Music;
 typedef struct TTF_Font TTF_Font;
 typedef struct Mix_Music Mix_Music;
 #elif defined(_WIN32) || defined(__MINGW32__)
-typedef struct _TTF_Font TTF_Font;
-typedef struct _Mix_Music Mix_Music;
+typedef struct TTF_Font TTF_Font;
+typedef struct Mix_Music Mix_Music;
 #else
 typedef struct TTF_Font TTF_Font;
 typedef struct Mix_Music Mix_Music;
