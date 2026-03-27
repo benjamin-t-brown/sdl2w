@@ -11,6 +11,7 @@ std::unordered_map<std::string, std::unordered_map<size_t, std::string>>
 std::vector<std::string> L10n::supportedLanguages = {
     // default supported languages
     "en"};
+bool L10n::enabledFlag = false;
 
 void L10n::init(const std::vector<std::string>& langs) {
   if (!isEnabled()) {
@@ -80,7 +81,8 @@ void L10n::loadLanguage(const std::string& lang, const std::string& langText) {
   }
 }
 
-bool L10n::isEnabled() { return true; }
+void L10n::setEnabled(bool enabled) { enabledFlag = enabled; }
+bool L10n::isEnabled() { return enabledFlag; }
 
 void L10n::setLanguage(const std::string& lang) {
   if (!isEnabled()) {

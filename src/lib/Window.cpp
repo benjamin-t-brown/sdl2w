@@ -245,8 +245,12 @@ void Window::renderLoop() {
     return;
   }
 
+  if (initTimeMax > initTime) {
+    initTime += deltaTime;
+  }
+
   events.update();
-  if (isReady()) {
+  if (isReady() && initTime >= initTimeMax) {
     if (firstLoop) {
       onInitCb();
       firstLoop = false;
@@ -258,6 +262,8 @@ void Window::renderLoop() {
 
   draw.renderIntermediate();
 }
+
+void Window::setInitTimeMax(int max) { initTimeMax = max; }
 
 #ifdef __EMSCRIPTEN__
 void RenderLoopCallback(void* arg) { static_cast<Window*>(arg)->renderLoop(); }

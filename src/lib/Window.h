@@ -40,6 +40,8 @@ class Window {
   int windowHeight = 0;
   int soundPct = 100;
   int numSoundChannels = 16;
+  int initTime = 0;
+  int initTimeMax = 500;
   bool firstLoop = true;
   bool isLooping = false;
 
@@ -70,6 +72,7 @@ public:
   int getDeltaTime() const { return static_cast<int>(deltaTime); }
 
   void renderLoop();
+  void setInitTimeMax(int max);
   void startRenderLoop(std::function<bool(void)> _initializingCb,
                        std::function<void(void)> _onInitCb,
                        std::function<bool(void)> _loopCb);

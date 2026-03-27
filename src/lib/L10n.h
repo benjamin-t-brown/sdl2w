@@ -18,7 +18,8 @@ drawText(TRANSLATE("Example Text")), {});
 
 namespace sdl2w {
 
-#define TRANSLATE(text) sdl2w::L10n::trans(sdl2w::L10n::hash(text))
+#define TRANSLATE(text)                                                        \
+  sdl2w::L10n::isEnabled() ? sdl2w::L10n::trans(sdl2w::L10n::hash(text)) : text
 
 class L10n {
   static std::string language;
@@ -26,12 +27,14 @@ class L10n {
                             std::unordered_map<size_t, std::string>>
       locStrings;
   static std::vector<std::string> supportedLanguages;
+  static bool enabledFlag;
 
 public:
   static void init(const std::vector<std::string>& langs = {"en"});
   static void loadLanguage(const std::string& lang,
                            const std::string& langFile);
   static void setLanguage(const std::string& lang);
+  static void setEnabled(bool enabled);
   static bool isEnabled();
   static const std::unordered_map<size_t, std::string>& getStrings();
   static std::string trans(size_t id);
