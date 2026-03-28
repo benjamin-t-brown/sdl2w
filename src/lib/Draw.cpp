@@ -230,18 +230,18 @@ void Draw::drawTexture(SDL_Texture* tex, const RenderableParams& params) {
   int width, height;
   SDL_QueryTexture(tex, nullptr, nullptr, &width, &height);
   drawTexture(tex,
-              {.scale = params.scale,
-               .angleDeg = 0,
-               .x = params.x,
-               .y = params.y,
-               .w = width,
-               .h = height,
-               .clipX = 0,
-               .clipY = 0,
-               .clipW = width,
-               .clipH = height,
-               .centered = params.centered,
-               .flipped = params.flipped});
+              RenderableParamsEx{.scale = params.scale,
+                                 .angleDeg = 0.,
+                                 .x = params.x,
+                                 .y = params.y,
+                                 .w = width,
+                                 .h = height,
+                                 .clipX = 0,
+                                 .clipY = 0,
+                                 .clipW = width,
+                                 .clipH = height,
+                                 .centered = params.centered,
+                                 .flipped = params.flipped});
 }
 
 void Draw::drawTexture(SDL_Texture* tex, const RenderableParamsEx& params) {
@@ -508,28 +508,41 @@ void Draw::drawText(const std::string& text, const RenderTextParams& params) {
 
   if (mode == DrawMode::CPU) {
     drawSurface(r.surf,
-                RenderableParams{
-                    .scale = {1., 1.},
-                    .x = params.x,
-                    .y = params.y,
-                    .centered = params.centered,
-                });
+                RenderableParamsEx{.scale = params.scale,
+                                   .angleDeg = 0,
+                                   .x = params.x,
+                                   .y = params.y,
+                                   .w = r.surf->w,
+                                   .h = r.surf->h,
+                                   .clipX = 0,
+                                   .clipY = 0,
+                                   .clipW = r.surf->w,
+                                   .clipH = r.surf->h,
+                                   .centered = params.centered,
+                                   .flipped = false});
   } else {
+    int width, height;
+    SDL_QueryTexture(r.tex, nullptr, nullptr, &width, &height);
     drawTexture(r.tex,
-                RenderableParams{
-                    .scale = {1., 1.},
-                    .x = params.x,
-                    .y = params.y,
-                    .centered = params.centered,
-                });
+                RenderableParamsEx{.scale = params.scale,
+                                   .angleDeg = params.angleDeg,
+                                   .x = params.x,
+                                   .y = params.y,
+                                   .w = width,
+                                   .h = height,
+                                   .clipX = 0,
+                                   .clipY = 0,
+                                   .clipW = width,
+                                   .clipH = height,
+                                   .centered = params.centered,
+                                   .flipped = false});
+    // drawTexture(r.tex,
+    //             RenderableParams{.scale = params.scale,
+    //                              .x = params.x,
+    //                              .y = params.y,
+    //                              .centered = params.centered,
+    //                              .flipped = false});
   }
-
-  // int w, h;
-  // SDL_QueryTexture(tex, nullptr, nullptr, &(w), &(h));
-  // SDL_SetTextureAlphaMod(tex, globalAlpha);
-  // const SDL_Rect pos = {x, transformY(y, h), w, h};
-  // SDL_SetRenderDrawBlendMode(renderer.get(), SDL_BLENDMODE_BLEND);
-  // SDL_RenderCopy(renderer.get(), tex, nullptr, &pos);
 }
 
 void Draw::drawRect(int x, int y, int w, int h, const SDL_Color& color) {

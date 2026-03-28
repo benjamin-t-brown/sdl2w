@@ -49,6 +49,8 @@ struct RenderTextParams {
   int y = 0;
   SDL_Color color = {0, 0, 0, 255};
   bool centered = false;
+  double angleDeg = 0.;
+  std::pair<double, double> scale = {1., 1.};
 };
 
 struct Renderable {
