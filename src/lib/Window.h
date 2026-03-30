@@ -38,6 +38,8 @@ class Window {
   SDL_Renderer* sdlRenderer = nullptr;
   int windowWidth = 0;
   int windowHeight = 0;
+  int renderWidth = 0;
+  int renderHeight = 0;
   int soundPct = 100;
   int numSoundChannels = 16;
   int initTime = 0;
@@ -69,6 +71,7 @@ public:
   void stopMusic();
   bool isMusicPlaying() const;
   std::pair<int, int> getDims() const;
+  std::pair<int, int> getRenderDims() const;
   int getDeltaTime() const { return static_cast<int>(deltaTime); }
 
   void renderLoop();

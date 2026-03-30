@@ -2,10 +2,13 @@
 #include "Defines.h"
 #include "Logger.h"
 #include "Store.h"
+#include <algorithm>
+#include <cmath>
 #include <sstream>
 
 #if defined(MIYOOA30) || defined(MIYOOMINI)
 #include <SDL.h>
+#include <SDL2_gfxPrimitives.h>
 #include <SDL2_rotozoom.h>
 #include <SDL_image.h>
 #include <SDL_render.h>
@@ -14,6 +17,7 @@
 #include <SDL_ttf.h>
 #else
 #include <SDL2/SDL.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
 #include <SDL2/SDL2_rotozoom.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_render.h>
@@ -23,6 +27,40 @@
 #endif
 
 namespace sdl2w {
+
+namespace {
+
+void drawLineCpu(SDL_Surface* surf,
+                 int x0,
+                 int y0,
+                 int x1,
+                 int y1,
+                 int lineWidth,
+                 const SDL_Color& color) {
+  const Uint32 px =
+      SDL_MapRGBA(surf->format, color.r, color.g, color.b, color.a);
+  const double dx = static_cast<double>(x1 - x0);
+  const double dy = static_cast<double>(y1 - y0);
+  const double len = std::hypot(dx, dy);
+  const int halfW = lineWidth / 2;
+
+  if (len < 1e-6) {
+    SDL_Rect rect = {x0 - halfW, y0 - halfW, lineWidth, lineWidth};
+    SDL_FillRect(surf, &rect, px);
+    return;
+  }
+
+  const int steps = std::max({1, static_cast<int>(std::ceil(len)), lineWidth});
+  for (int i = 0; i <= steps; ++i) {
+    const double t = static_cast<double>(i) / static_cast<double>(steps);
+    const int x = static_cast<int>(std::lround(x0 + dx * t));
+    const int y = static_cast<int>(std::lround(y0 + dy * t));
+    SDL_Rect rect = {x - halfW, y - halfW, lineWidth, lineWidth};
+    SDL_FillRect(surf, &rect, px);
+  }
+}
+
+} // namespace
 
 // https://gist.github.com/Gumichan01/332c26f6197a432db91cc4327fcabb1c
 int SDL_RenderDrawCircle(SDL_Renderer* renderer, int x, int y, int radius) {
@@ -536,12 +574,6 @@ void Draw::drawText(const std::string& text, const RenderTextParams& params) {
                                    .clipH = height,
                                    .centered = params.centered,
                                    .flipped = false});
-    // drawTexture(r.tex,
-    //             RenderableParams{.scale = params.scale,
-    //                              .x = params.x,
-    //                              .y = params.y,
-    //                              .centered = params.centered,
-    //                              .flipped = false});
   }
 }
 
@@ -562,6 +594,35 @@ void Draw::drawRect(int x, int y, int w, int h, const SDL_Color& color) {
                            backgroundColor.b,
                            backgroundColor.a);
   }
+}
+
+void Draw::drawLine(const std::pair<int, int>& from,
+                    const std::pair<int, int>& to,
+                    int lineWidth,
+                    const SDL_Color& color) {
+  const int w = std::max(1, lineWidth);
+
+  if (mode == DrawMode::CPU) {
+    drawLineCpu(screen, from.first, from.second, to.first, to.second, w, color);
+    return;
+  }
+
+  const Uint8 gfxW = static_cast<Uint8>(std::min(w, 255));
+  thickLineRGBA(sdlRenderer,
+                static_cast<Sint16>(from.first),
+                static_cast<Sint16>(from.second),
+                static_cast<Sint16>(to.first),
+                static_cast<Sint16>(to.second),
+                gfxW,
+                color.r,
+                color.g,
+                color.b,
+                color.a);
+  SDL_SetRenderDrawColor(sdlRenderer,
+                         backgroundColor.r,
+                         backgroundColor.g,
+                         backgroundColor.b,
+                         backgroundColor.a);
 }
 
 void Draw::drawCircle(

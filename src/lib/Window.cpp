@@ -58,6 +58,8 @@ Window::Window(Store& store, const Window2Params& params)
 
   windowWidth = params.w;
   windowHeight = params.h;
+  renderWidth = params.renderW;
+  renderHeight = params.renderH;
 
   AssetLoader::initFs();
 
@@ -126,6 +128,10 @@ bool Window::isMusicPlaying() const {
 
 std::pair<int, int> Window::getDims() const {
   return std::make_pair(windowWidth, windowHeight);
+}
+
+std::pair<int, int> Window::getRenderDims() const {
+  return std::make_pair(renderWidth, renderHeight);
 }
 
 void Window::init() {
