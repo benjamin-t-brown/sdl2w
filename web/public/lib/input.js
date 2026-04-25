@@ -276,6 +276,19 @@ const controlsDpadLr = `
 </div>
 `;
 
+const controlsButtonsA = `
+<div class="scaffold-buttons">
+  <div class="scaffold-flex-row-flex-end">
+    <button class="scaffold-button scaffold-button-confirm"
+      onmousedown="${buttonCallbackStrings.Confirm.down}"
+      ontouchstart="${buttonCallbackStrings.Confirm.down}"
+      onmouseup="${buttonCallbackStrings.Confirm.up}"
+      ontouchend="${buttonCallbackStrings.Confirm.up}"
+      >X</button>
+  </div>
+</div>
+`;
+
 const controlsButtonsAb = `
 <div class="scaffold-buttons">
   <div class="scaffold-flex-row-flex-end">
@@ -284,7 +297,7 @@ const controlsButtonsAb = `
       ontouchstart="${buttonCallbackStrings.Confirm.down}"
       onmouseup="${buttonCallbackStrings.Confirm.up}"
       ontouchend="${buttonCallbackStrings.Confirm.up}"
-      >A</button>
+      >X</button>
   </div>
   <div class="scaffold-flex-row-center">
     <button class="scaffold-button scaffold-button-cancel"
@@ -292,7 +305,7 @@ const controlsButtonsAb = `
       ontouchstart="${buttonCallbackStrings.Cancel.down}"
       onmouseup="${buttonCallbackStrings.Cancel.up}"
       ontouchend="${buttonCallbackStrings.Cancel.up}"
-      >B</button>
+      >Z</button>
   </div>
 </div>
 `;
@@ -308,13 +321,13 @@ const controlsButtonsAbShift = `
       ontouchstart="${buttonCallbackStrings.Shift.down}"
       onmouseup="${buttonCallbackStrings.Shift.up}"
       ontouchend="${buttonCallbackStrings.Shift.up}"
-      >Y</button>
+      >SHIFT</button>
     <button class="scaffold-button scaffold-button-confirm"
       onmousedown="${buttonCallbackStrings.Confirm.down}"
       ontouchstart="${buttonCallbackStrings.Confirm.down}"
       onmouseup="${buttonCallbackStrings.Confirm.up}"
       ontouchend="${buttonCallbackStrings.Confirm.up}"
-      >A</button>
+      >X</button>
   </div>
   <div class="scaffold-flex-row-center">
     <button class="scaffold-button scaffold-button-cancel"
@@ -322,18 +335,81 @@ const controlsButtonsAbShift = `
       ontouchstart="${buttonCallbackStrings.Cancel.down}"
       onmouseup="${buttonCallbackStrings.Cancel.up}"
       ontouchend="${buttonCallbackStrings.Cancel.up}"
-      >B</button>
+      >Z</button>
   </div>
 </div>
 `;
 
-// dpadLayout: normal, lr
-// buttonsLayout: 'ab', 'abshift'
+const controlsCenteredLrAction = `
+<div class="scaffold-buttons">
+  <div class="scaffold-flex-row-space-between">
+    <button class="scaffold-button scaffold-button-direction"
+      onmousedown="${buttonCallbackStrings.Left.down}"
+      ontouchstart="${buttonCallbackStrings.Left.down}"
+      onmouseup="${buttonCallbackStrings.Left.up}"
+      ontouchend="${buttonCallbackStrings.Left.up}"
+      >←</button>
+    <button class="scaffold-button scaffold-button-confirm"
+      onmousedown="${buttonCallbackStrings.Confirm.down}"
+      ontouchstart="${buttonCallbackStrings.Confirm.down}"
+      onmouseup="${buttonCallbackStrings.Confirm.up}"
+      ontouchend="${buttonCallbackStrings.Confirm.up}"
+      >X</button>
+    <button class="scaffold-button scaffold-button-direction"
+      onmousedown="${buttonCallbackStrings.Right.down}"
+      ontouchstart="${buttonCallbackStrings.Right.down}"
+      onmouseup="${buttonCallbackStrings.Right.up}"
+      ontouchend="${buttonCallbackStrings.Right.up}"
+      >→</button>
+  </div>
+</div>
+`;
+
+// dpadLayout: normal, lr, centeredlaf
+// buttonsLayout: 'a', 'ab', 'abshift'
 window.createOnScreenControls = (dpadLayout, buttonsLayout) => {
-  const controlsDpad =
-    dpadLayout === 'lr' ? controlsDpadLr : controlsDpadNormal;
-  const controlsButtons =
-    buttonsLayout === 'abshift' ? controlsButtonsAbShift : controlsButtonsAb;
+  if (dpadLayout === 'centeredlaf') {
+    const scaffoldHtml = `
+    <div class="scaffold-outer">
+      <div id="scaffold-controls-bottom" style="justify-content: center;">
+        <div class="scaffold-controls">${controlsCenteredLrAction}
+          <div class="scaffold-vertical-spacer"></div>
+        </div>
+      </div>
+    </div>
+    `;
+    const game = document.getElementById('controls');
+    if (game) {
+      game.innerHTML = scaffoldHtml;
+    } else {
+      console.error('Could not find "#controls" element to append scaffold.');
+    }
+    return;
+  }
+
+  const dpadMap = {
+    normal: controlsDpadNormal,
+    lr: controlsDpadLr,
+  }
+  const buttonsMap = {
+    a: controlsButtonsA,
+    ab: controlsButtonsAb,
+    abshift: controlsButtonsAbShift,
+  };
+  if (!buttonsMap[buttonsLayout]) {
+    console.error(
+      `[LIB] Invalid buttons layout "${buttonsLayout}", using "ab" instead.`
+    );
+    buttonsLayout = 'ab';
+  }
+  if (!dpadMap[dpadLayout]) {
+    console.error(
+      `[LIB] Invalid dpad layout "${dpadLayout}", using "normal" instead.`
+    );
+    dpadLayout = 'normal';
+  }
+  const controlsDpad = dpadMap[dpadLayout];
+  const controlsButtons = buttonsMap[buttonsLayout];
 
   const scaffoldHtml = `
   <div class="scaffold-outer">
@@ -353,4 +429,4 @@ window.createOnScreenControls = (dpadLayout, buttonsLayout) => {
   } else {
     console.error('Could not find "#controls" element to append scaffold.');
   }
-}
+};

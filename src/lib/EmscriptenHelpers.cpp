@@ -15,13 +15,13 @@ sdl2w::Window* emscriptenWindow = nullptr;
 void setEmscriptenWindow(sdl2w::Window* window) {
   emscriptenWindow = window;
   sdl2w::Logger().get(sdl2w::DEBUG)
-      << "[sdl2w] Set Emscripten window: " << emscriptenWindow << sdl2w::Logger::endl;
+      << "[sdl2w] Set Emscripten window: " << emscriptenWindow
+      << sdl2w::Logger::endl;
 
 #ifdef __EMSCRIPTEN__
   std::stringstream ss;
   auto [width, height] = window->getDraw().getRenderSize();
-  ss << "window.Lib.notifyTargetWindowSize(" << width << ", "
-     << height << ")";
+  ss << "window.Lib.notifyTargetWindowSize(" << width << ", " << height << ")";
   emscripten_run_script(ss.str().c_str());
 #endif
 }
@@ -47,29 +47,38 @@ void notifyGameReady() {
 }
 void notifyGameCompleted(const std::string& result) {
 #ifdef __EMSCRIPTEN__
-  const std::string script = std::string("window.Lib.notifyGameCompleted('" +
-                                         result + "')");
+  const std::string script =
+      std::string("window.Lib.notifyGameCompleted('" + result + "')");
   emscripten_run_script(script.c_str());
 #endif
 }
-void notifyGameGeneric(const std::string& payload)
-{
- #ifdef __EMSCRIPTEN__
-  const std::string script = std::string("window.Lib.notifyGameGeneric('" +
-                                         payload + "')");
+void notifyGameGeneric(const std::string& payload) {
+#ifdef __EMSCRIPTEN__
+  const std::string script =
+      std::string("window.Lib.notifyGameGeneric('" + payload + "')");
   emscripten_run_script(script.c_str());
-#endif 
+#endif
 }
 } // namespace emshelpers
 
 #ifdef __EMSCRIPTEN__
 extern "C" {
+
+EMSCRIPTEN_KEEPALIVE
+void setVolume(int volumePct) {
+  // set master volume: both music and sound
+  emshelpers::emscriptenWindow->setSoundPct(double(volumePct));
+  emshelpers::emscriptenWindow->setMusicPct(double(volumePct));
+  sdl2w::Logger().get(sdl2w::DEBUG)
+      << "Set master volume:" << volumePct << "%" << sdl2w::Logger::endl;
+}
 EMSCRIPTEN_KEEPALIVE
 void enableSound() {
   sdl2w::Window::_soundEnabled = true;
   int volumePct = emshelpers::emscriptenWindow->getSoundPct();
-  Mix_VolumeMusic((double(volumePct) / 100.0) * double(MIX_MAX_VOLUME));
+  int musicPct = emshelpers::emscriptenWindow->getMusicPct();
   Mix_Volume(-1, (double(volumePct) / 100.0) * double(MIX_MAX_VOLUME));
+  Mix_VolumeMusic((double(musicPct) / 100.0) * double(MIX_MAX_VOLUME));
   sdl2w::Logger().get(sdl2w::DEBUG) << "Enable sound" << sdl2w::Logger::endl;
 }
 EMSCRIPTEN_KEEPALIVE
@@ -79,12 +88,6 @@ void disableSound() {
   Mix_VolumeMusic(0);
   Mix_Volume(-1, 0);
   sdl2w::Logger().get(sdl2w::DEBUG) << "Disable sound" << sdl2w::Logger::endl;
-}
-EMSCRIPTEN_KEEPALIVE
-void setVolume(int volumePct) {
-  emshelpers::emscriptenWindow->setSoundPct(double(volumePct));
-  sdl2w::Logger().get(sdl2w::DEBUG)
-      << "Set volume:" << volumePct << "%" << sdl2w::Logger::endl;
 }
 EMSCRIPTEN_KEEPALIVE
 void setKeyDown(int key) {

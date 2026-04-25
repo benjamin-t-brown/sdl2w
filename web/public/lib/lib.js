@@ -1,13 +1,38 @@
 const canvas = document.getElementById('canvas');
-canvas.width = 512;
-canvas.height = 512;
+canvas.width = 640;
+canvas.height = 480;
 const params = new URLSearchParams(window.location.search);
+const SOUND_ENABLED_STORAGE_KEY = 'sdl2w.soundEnabled';
+
+const getStoredSoundEnabled = () => {
+  try {
+    const value = window.localStorage.getItem(SOUND_ENABLED_STORAGE_KEY);
+    if (value === null) {
+      return null;
+    }
+    return value === 'true';
+  } catch (e) {
+    console.warn('[LIB] Unable to read sound preference from localStorage.', e);
+    return null;
+  }
+};
+
+const persistSoundEnabled = (enabled) => {
+  try {
+    window.localStorage.setItem(SOUND_ENABLED_STORAGE_KEY, String(enabled));
+  } catch (e) {
+    console.warn('[LIB] Unable to persist sound preference to localStorage.', e);
+  }
+};
 
 // params
 const language = params.get('language') || 'en';
 const isArcadeCabinet = params.get('arcade') === 'true';
 const shouldMute = params.get('muted') === 'true';
 const tapToStart = params.get('tap');
+const storedSoundEnabled = getStoredSoundEnabled();
+const shouldStartMuted = storedSoundEnabled === false || shouldMute;
+const initialSoundEnabled = !shouldStartMuted;
 
 const subscriptions = {
   onButtonDown: [],
@@ -19,12 +44,12 @@ const subscriptions = {
 
 const config = {
   gameStarted: false,
-  soundEnabled: true,
+  soundEnabled: initialSoundEnabled,
   disableInput: false,
   isArcadeCabinet,
   language,
-  targetWidth: 512,
-  targetHeight: 512,
+  targetWidth: 640, // reset by notifyTargetWindowSize
+  targetHeight: 480, // reset by notifyTargetWindowSize
   showControls: true,
 };
 
@@ -71,6 +96,7 @@ const Lib = {
       Module.ccall('enableSound');
     }
     config.soundEnabled = !config.soundEnabled;
+    persistSoundEnabled(config.soundEnabled);
     this.invokeEvent('onToggleSound', config.soundEnabled);
   },
   setWASMVolume(pct) {
@@ -87,6 +113,7 @@ const Lib = {
     if (window.event) {
       window.event.preventDefault();
     }
+    console.log('[LIB] Handle button down', key);
     Module.ccall('setKeyDown', 'void', ['number'], [key]);
     this.invokeEvent('onButtonDown', key);
   },
@@ -100,9 +127,13 @@ const Lib = {
     Module.ccall('setKeyUp', 'void', ['number'], [key]);
     this.invokeEvent('onButtonUp', key);
   },
+  sendEvent(event, payload) {
+    console.log('[LIB] Send event', event, payload);
+    Module.ccall('sendEvent', 'void', ['number', 'string'], [event, String(payload)]);
+  },
   notifyParentFrame(action, payload) {
     if (window.parent) {
-      console.log('[LIB] Notify parent', action);
+      console.log('[LIB] Notify parent', action, payload);
       window.parent.postMessage(
         JSON.stringify({
           action,
@@ -113,7 +144,6 @@ const Lib = {
     }
   },
   notifyTargetWindowSize(w, h) {
-    console.log('[LIB] Notify target window size', w, h);
     config.targetWidth = w;
     config.targetHeight = h;
     canvas.width = w;
@@ -135,12 +165,12 @@ const Lib = {
     this.notifyParentFrame('GAME_STARTED', {});
     config.gameStarted = true;
   },
-  notifyGameCompleted(...results) {
-    this.notifyParentFrame(
-      'GAME_CONCLUDED',
-      results.length > 1 ? results : results[0]
-    );
+  notifyGameCompleted(result) {
+    this.notifyParentFrame('GAME_CONCLUDED', result);
     config.gameStarted = false;
+  },
+  notifyGameGeneric(payload) {
+    this.notifyParentFrame('GAME_GENERIC', payload);
   },
   subscribe(eventName, callback) {
     if (subscriptions[eventName]) {
@@ -168,7 +198,7 @@ const Lib = {
       soundOn: 'Sound on',
       soundOff: 'Sound off',
     };
-  }
+  },
 };
 window.Lib = Lib;
 
@@ -188,12 +218,12 @@ var Module = {
       Lib.hideLoading();
       Lib.showGame();
 
-      if (shouldMute) {
+      if (shouldStartMuted) {
         // HACK: delayed because the WASM is sometimes not ready to accept the call
         // to mute it
         setTimeout(() => {
-          Lib.getConfig().soundEnabled = true;
-          Lib.toggleSound();
+          Module.ccall('disableSound');
+          Lib.invokeEvent('onToggleSound', Lib.getConfig().soundEnabled);
         }, 300);
       }
 
