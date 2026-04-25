@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #if defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
 #include <emscripten/stack.h>
 #elif defined(_WIN32)
 #ifndef NOMINMAX
@@ -138,10 +139,23 @@ int Logger::printf(const char* c, ...) {
 
 std::string Logger::getStackTrace() {
 #if defined(__EMSCRIPTEN__)
-  char* trace = emscripten_get_callstack(EM_LOG_C_STACK);
-  std::string out = trace != nullptr ? trace : "";
-  free(trace);
-  return out;
+  const int required = emscripten_get_callstack(EM_LOG_C_STACK, nullptr, 0);
+  if (required <= 0) {
+    return "";
+  }
+
+  std::string trace(static_cast<size_t>(required), '\0');
+  const int written =
+      emscripten_get_callstack(EM_LOG_C_STACK, trace.data(), required);
+  if (written <= 0) {
+    return "";
+  }
+
+  // Drop trailing '\0' returned by the C API, if present.
+  if (!trace.empty() && trace.back() == '\0') {
+    trace.pop_back();
+  }
+  return trace;
 #elif defined(_WIN32)
   void* frames[64];
   const USHORT frameCount = CaptureStackBackTrace(0, 64, frames, nullptr);

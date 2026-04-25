@@ -107,8 +107,8 @@ void setKeyStatus(int status) {
 }
 EMSCRIPTEN_KEEPALIVE
 void sendEvent(int event, int payload) {
-  emshelpers::emscriptenWindow->pushExternalEvent(event);
-  emshelpers::emscriptenWindow->pushExternalEvent(payload);
+  emshelpers::emscriptenWindow->pushExternalEvent(event,
+                                                  std::to_string(payload));
   sdl2w::Logger().get(sdl2w::DEBUG) << "External event received: " << event
                                     << ":" << payload << sdl2w::Logger::endl;
 }
