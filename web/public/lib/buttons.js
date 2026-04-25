@@ -34,6 +34,9 @@ window.onToggleControls = function () {
 };
 
 window.onToggleHelp = function () {
+  if (document.getElementById('instructions')) {
+    return;
+  }
   const url = `instructions/instructions.${
     window.Lib.getConfig().language
   }.html`;
