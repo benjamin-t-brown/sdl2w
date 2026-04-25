@@ -70,7 +70,17 @@ Window::~Window() {}
 
 bool Window::isReady() const { return _isInit && AssetLoader::fsReady; }
 
-void Window::setSoundPct(int pct) { soundPct = pct; }
+void Window::setSoundPct(int pct) {
+  soundPct = pct;
+  Mix_Volume(
+      -1, static_cast<int>(double(soundPct) / 100.0 * double(MIX_MAX_VOLUME)));
+}
+
+void Window::setMusicPct(int pct) {
+  musicPct = pct;
+  Mix_VolumeMusic(
+      static_cast<int>(double(musicPct) / 100.0 * double(MIX_MAX_VOLUME)));
+}
 
 void Window::playSound(const std::string& name) {
   if (!_soundEnabled) {
@@ -102,7 +112,7 @@ void Window::playMusic(const std::string& name) {
   }
   Mix_PlayMusic(music, -1);
   Mix_VolumeMusic(
-      static_cast<int>(double(soundPct) / 100.0 * double(MIX_MAX_VOLUME)));
+      static_cast<int>(double(musicPct) / 100.0 * double(MIX_MAX_VOLUME)));
 }
 
 void Window::stopMusic() {

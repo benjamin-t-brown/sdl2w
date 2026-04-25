@@ -13,18 +13,6 @@ lib/EmscriptenHelpers.cpp
 TARGET ?= native
 BASE_BUILD_DIR = build
 
-EMCC_EXPORTED=\
--s EXPORTED_FUNCTIONS='[\
- "_main",\
- "_enableSound",\
- "_disableSound",\
- "_setVolume",\
- "_setKeyDown",\
- "_setKeyUp",\
- "_setKeyStatus"\
-]'\
--s EXPORTED_RUNTIME_METHODS=['ccall']
-
 # On Windows, parallel make + g++ can emit \r and interleave output, showing as garbage (♪◙). Use V=1 to see full commands.
 ifeq ($(V),1)
   Q =
@@ -32,13 +20,11 @@ else
   Q = @
 endif
 
-LIBS_PLUS=
 DEBUG=true
 ifeq ($(TARGET),wasm)
     INCLUDES= -I.
     FLAGS = -Wall -std=c++17 -Oz -flto
-    LIBS_PLUS = -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s USE_SDL_MIXER=2 -s SDL2_IMAGE_FORMATS='["png"]' -s USE_SDL_TTF=2 -s USE_SDL_GFX=2
-    LIBS = $(EMCC_EXPORTED) -lidbfs.js
+    LIBS =
     CXX = em++
     AR = emar
 else
@@ -121,7 +107,7 @@ tools: $(LIB_SDL2W) L10nScanner Anims
 	mv L10nScanner* build/tools/
 
 Anims: tools/Anims.cpp $(ALL_CLIENT_OBJECTS)
-	$(CXX) $(FLAGS) $(INCLUDES) $(OBJECTS) $< $(filter %.o,$^) -o $@ $(LIBS_PLUS) $(LIBS) 
+	$(CXX) $(FLAGS) $(INCLUDES) $(OBJECTS) $< $(filter %.o,$^) -o $@ $(LIBS) 
 
 L10nScanner: tools/L10nScanner.cpp 
 	$(CXX) $(FLAGS) $(INCLUDES) $< -o $@
@@ -130,7 +116,7 @@ L10nScanner: tools/L10nScanner.cpp
 
 $(OBJ_OUTPUT_DIR)/%.o: %.cpp | $(DIRS_TO_CREATE)
 	@mkdir -p $(@D)
-	$(CXX) $(FLAGS) $(INCLUDES) -MMD -MP -c $< -o $@ $(LIBS_PLUS)
+	$(CXX) $(FLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
 
 clean:
 	@echo "Cleaning for all targets..."

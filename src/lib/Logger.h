@@ -7,8 +7,11 @@
 namespace sdl2w {
 
 #define LOG(level) sdl2w::Logger().get(sdl2w::LogType::level)
-#define LOG_LINE(level) sdl2w::Logger().get(sdl2w::LogType::level, __FILE__, __LINE__)
+#define LOG_LINE(level)                                                        \
+  sdl2w::Logger().get(sdl2w::LogType::level, __FILE__, __LINE__)
 #define LOG_ENDL sdl2w::Logger::endl
+#define THROW_RUNTIME_ERROR(msg)                                               \
+  sdl2w::Logger::throwRuntimeError((msg), __FILE__, __LINE__)
 
 enum LogType { DEBUG, INFO, WARN, ERROR };
 
@@ -22,9 +25,7 @@ public:
   static std::fstream logFile;
   static LogType localLogLevel;
 
-  Logger() {
-    localLogLevel = DEBUG;
-  };
+  Logger() { localLogLevel = DEBUG; };
   virtual ~Logger();
   std::ostringstream& get(LogType level = INFO);
   std::ostringstream& get(LogType level, const char* file, int line);
@@ -34,6 +35,11 @@ public:
   static void setLogLevel(LogType level);
 
   int printf(const char* format, ...);
+
+  static std::string getStackTrace();
+  [[noreturn]] static void throwRuntimeError(const std::string& msg);
+  [[noreturn]] static void
+  throwRuntimeError(const std::string& msg, const char* file, int line);
 };
 
 } // namespace sdl2w

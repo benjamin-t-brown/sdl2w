@@ -25,6 +25,13 @@ void setEmscriptenWindow(sdl2w::Window* window) {
   emscripten_run_script(ss.str().c_str());
 #endif
 }
+bool isEmscriptenEnv() {
+#ifdef __EMSCRIPTEN__
+  return true;
+#else
+  return false;
+#endif
+}
 
 void notifyGameStarted() {
 #ifdef __EMSCRIPTEN__

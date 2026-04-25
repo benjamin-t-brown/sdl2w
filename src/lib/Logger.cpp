@@ -1,7 +1,24 @@
 #include "Logger.h"
 #include <regex>
 #include <stdarg.h>
+#include <stdexcept>
+#include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/stack.h>
+#elif defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#ifdef ERROR
+#undef ERROR
+#endif
+#elif defined(__linux__) || defined(__APPLE__)
+#include <execinfo.h>
+#endif
 
 namespace sdl2w {
 
@@ -117,5 +134,77 @@ int Logger::printf(const char* c, ...) {
   }
   va_end(lst);
   return 0;
+}
+
+std::string Logger::getStackTrace() {
+#if defined(__EMSCRIPTEN__)
+  char* trace = emscripten_get_callstack(EM_LOG_C_STACK);
+  std::string out = trace != nullptr ? trace : "";
+  free(trace);
+  return out;
+#elif defined(_WIN32)
+  void* frames[64];
+  const USHORT frameCount = CaptureStackBackTrace(0, 64, frames, nullptr);
+  if (frameCount == 0) {
+    return "";
+  }
+  std::ostringstream os;
+  os << "frames=" << frameCount << "\n";
+  for (USHORT i = 0; i < frameCount; ++i) {
+    os << "  [" << i << "] 0x" << std::hex
+       << reinterpret_cast<uintptr_t>(frames[i]) << std::dec << "\n";
+  }
+  return os.str();
+#elif defined(__linux__) || defined(__APPLE__)
+  void* frames[64];
+  const int frameCount = backtrace(frames, 64);
+  if (frameCount <= 0) {
+    return "";
+  }
+  char** symbols = backtrace_symbols(frames, frameCount);
+  std::ostringstream os;
+  os << "frames=" << frameCount << "\n";
+  if (symbols) {
+    for (int i = 0; i < frameCount; ++i) {
+      os << "  [" << i << "] " << symbols[i] << "\n";
+    }
+    free(symbols);
+  } else {
+    for (int i = 0; i < frameCount; ++i) {
+      os << "  [" << i << "] " << frames[i] << "\n";
+    }
+  }
+  return os.str();
+#else
+  return "Stack trace not available for this platform.\n";
+#endif
+}
+
+[[noreturn]] void Logger::throwRuntimeError(const std::string& msg) {
+  throwRuntimeError(msg, nullptr, 0);
+}
+
+[[noreturn]] void Logger::throwRuntimeError(const std::string& msg,
+                                            const char* file, int line) {
+  const std::string trace = getStackTrace();
+  if (file != nullptr) {
+    Logger().get(ERROR, file, line) << msg << Logger::endl;
+    if (!trace.empty()) {
+      Logger().get(ERROR, file, line) << "Stack trace:\n"
+                                      << trace << Logger::endl;
+    }
+  } else {
+    Logger().get(ERROR) << msg << Logger::endl;
+    if (!trace.empty()) {
+      Logger().get(ERROR) << "Stack trace:\n" << trace << Logger::endl;
+    }
+  }
+
+  std::string exceptionMsg = msg;
+  if (!trace.empty()) {
+    exceptionMsg += "\nStack trace:\n";
+    exceptionMsg += trace;
+  }
+  throw std::runtime_error(exceptionMsg);
 }
 } // namespace sdl2w

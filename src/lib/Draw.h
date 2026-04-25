@@ -96,6 +96,7 @@ class Draw {
   SDL_Color backgroundColor = {0, 0, 0, 255};
   double renderRotationAngle = 0.0;
   int globalAlpha = 255;
+  std::unordered_map<std::string, bool> invalidSpriteWarnings;
 
   Renderable getTextRenderable(const std::string& text,
                                const RenderTextParams& params);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -28,6 +29,7 @@ struct Animation {
   int totalDuration;
   int spriteIndex;
   bool loop;
+  static std::unique_ptr<Sprite> staticDefaultSprite;
 
   Animation();
   Animation(const std::string& nameA, const bool loopA);

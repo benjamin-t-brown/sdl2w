@@ -4,7 +4,6 @@
 #include "Draw.h"
 #include "Logger.h"
 #include <algorithm>
-#include <stdexcept>
 
 #if defined(MIYOOA30) || defined(MIYOOMINI)
 #include <SDL.h>
@@ -168,12 +167,9 @@ void Store::storeSound(const std::string& name, const std::string& path) {
   sounds[name] =
       std::unique_ptr<Mix_Chunk, SDL_Deleter>(Mix_LoadWAV(path.c_str()));
   if (!sounds[name]) {
-    LOG_LINE(ERROR) << std::string("[sdl2w] ERROR Failed to load sound '" +
-                                   path +
-                                   "': reason= " + std::string(Mix_GetError()))
-                    << Logger::endl;
-    ;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR(
+        std::string("[sdl2w] ERROR Failed to load sound '" + path +
+                    "': reason= " + std::string(Mix_GetError())));
   }
 }
 
@@ -186,12 +182,9 @@ void Store::storeMusic(const std::string& name, const std::string& path) {
   musics[name] = std::unique_ptr<Mix_Music, SDL_Deleter>(
       Mix_LoadMUS(path.c_str()), SDL_Deleter());
   if (!musics[name]) {
-    LOG_LINE(ERROR) << std::string("[sdl2w] ERROR Failed to load music '" +
-                                   path +
-                                   "': reason= " + std::string(Mix_GetError()))
-                    << Logger::endl;
-    ;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR(
+        std::string("[sdl2w] ERROR Failed to load music '" + path +
+                    "': reason= " + std::string(Mix_GetError())));
   }
 }
 
@@ -200,10 +193,8 @@ SDL_Texture* Store::getTexture(const std::string& name) {
   if (pair != textures.end()) {
     return pair->second.get();
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get Texture '" + name +
-                           "' because it has not been loaded."
-                    << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Texture '" + name +
+                        "' because it has not been loaded.");
   }
 }
 SDL_Texture* Store::getDynamicTexture(const std::string& name) {
@@ -211,10 +202,8 @@ SDL_Texture* Store::getDynamicTexture(const std::string& name) {
   if (pair != dynamicTextures.end()) {
     return pair->second.get();
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get DynamicTexture '" + name +
-                           "' because it has not been loaded."
-                    << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get DynamicTexture '" + name +
+                        "' because it has not been loaded.");
   }
 }
 SDL_Surface* Store::getSurface(const std::string& name) {
@@ -222,10 +211,8 @@ SDL_Surface* Store::getSurface(const std::string& name) {
   if (pair != surfaces.end()) {
     return pair->second.get();
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get Surface '" + name +
-                           "' because it has not been loaded."
-                    << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Surface '" + name +
+                        "' because it has not been loaded.");
   }
 }
 SDL_Surface* Store::getDynamicSurface(const std::string& name) {
@@ -233,10 +220,8 @@ SDL_Surface* Store::getDynamicSurface(const std::string& name) {
   if (pair != dynamicSurfaces.end()) {
     return pair->second.get();
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get DynamicSurface '" + name +
-                           "' because it has not been loaded."
-                    << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get DynamicSurface '" + name +
+                        "' because it has not been loaded.");
   }
 }
 Sprite& Store::getSprite(const std::string& name) {
@@ -244,10 +229,8 @@ Sprite& Store::getSprite(const std::string& name) {
   if (pair != sprites.end()) {
     return *pair->second.get();
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get Sprite '" + name +
-                           "' because it has not been loaded."
-                    << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Sprite '" + name +
+                        "' because it has not been loaded.");
   }
 }
 
@@ -256,9 +239,14 @@ AnimationDefinition& Store::getAnimationDefinition(const std::string& name) {
   if (pair != anims.end()) {
     return *pair->second;
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get AnimationDefinition '" << name
-                    << "' because it has not been created." << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    // TODO inconsistent api
+    // LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get AnimationDefinition '" +
+    // name +
+    //                        "' because it has not been loaded. "
+    //                 << Logger::getStackTrace() << Logger::endl;
+    // return defaultAnimDef;
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get AnimationDefinition '" +
+                        name + "' because it has not been loaded.");
   }
 }
 
@@ -275,9 +263,8 @@ Store::getFont(const std::string& name, const int sz, const bool isOutline) {
   if (pair != fonts.end()) {
     return pair->second.get();
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get Font '" << key
-                    << "' because it has not been created." << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Font '" + key +
+                        "' because it has not been created.");
   }
 }
 
@@ -286,10 +273,8 @@ Mix_Chunk* Store::getSound(const std::string& name) {
   if (pair != sounds.end()) {
     return pair->second.get();
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get Sound '" + name +
-                           "' because it has not been loaded."
-                    << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Sound '" + name +
+                        "' because it has not been loaded.");
   }
 }
 Mix_Music* Store::getMusic(const std::string& name) {
@@ -297,10 +282,8 @@ Mix_Music* Store::getMusic(const std::string& name) {
   if (pair != musics.end()) {
     return pair->second.get();
   } else {
-    LOG_LINE(ERROR) << "[sdl2w] ERROR Cannot get Music '" + name +
-                           "' because it has not been loaded."
-                    << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Music '" + name +
+                        "' because it has not been loaded.");
   }
 }
 

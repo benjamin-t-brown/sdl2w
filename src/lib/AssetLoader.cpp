@@ -318,6 +318,10 @@ void AssetLoader::loadSpriteAssetsFromFile(const std::string& path) {
       if (arr.empty()) {
         continue;
       }
+      if (arr[0] == "-") {
+        lastSpriteInd = 0;
+        continue;
+      }
       if (arr[0] == "Picture") {
         // LOG_LINE(DEBUG) << "Loading picture: " << arr[1] << Logger::endl;
         lastPicture = arr[1];

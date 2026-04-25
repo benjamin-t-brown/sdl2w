@@ -453,11 +453,15 @@ void Draw::drawSpriteInner(const Sprite& sprite,
   auto [tex, surf] = sprite.renderable;
 
   if (tex == nullptr || surf == nullptr) {
-    LOG_LINE(ERROR) << "[sdl2w] Cannot drawSprite - Sprite missing required "
-                       "texture and/or surface: "
-                    << sprite.name << " tex=" << tex << " surf=" << surf
-                    << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    if (invalidSpriteWarnings.find(sprite.name) ==
+        invalidSpriteWarnings.end()) {
+      LOG_LINE(ERROR) << "[sdl2w] Cannot drawSprite - Sprite missing required "
+                         "texture and/or surface: "
+                      << sprite.name << " tex=" << tex << " surf=" << surf
+                      << Logger::endl;
+      invalidSpriteWarnings[sprite.name] = true;
+    }
+    return;
   }
 
   if (mode == DrawMode::CPU) {

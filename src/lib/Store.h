@@ -29,6 +29,7 @@ public:
       musics;
 
   std::unordered_map<std::string, std::string> fontAliases;
+  AnimationDefinition defaultAnimDef = AnimationDefinition("default", false);
 
   Store() {}
 

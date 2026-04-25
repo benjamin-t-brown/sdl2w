@@ -69,3 +69,59 @@ Scans your code base for TRANSLATION macros and creates translation lines for th
 ```
 ./L10nScanner.exe --input-dir <dir> --output-dir <dir2> en la fr
 ```
+
+# Linking SDL2W in your game
+
+`sdl2w` builds a static library (`libsdl2w.a`) and headers.  
+When consuming it, add the include path and library path, then link SDL2W + SDL2 dependencies in your final app link step.
+
+## Required artifacts from SDL2W
+
+- `sdl2w/include/*.h`
+- `sdl2w/lib/libsdl2w.a`
+
+## Native linking (g++)
+
+Use:
+
+- include path to SDL2W headers (for example `-I/path/to/sdl2w/include`)
+- library path to SDL2W archive (for example `-L/path/to/sdl2w/lib`)
+- `-lsdl2w`
+- SDL libraries:
+  - `-lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx`
+
+Typical example:
+
+```
+g++ -std=c++17 -I/path/to/sdl2w/include main.cpp \
+  -L/path/to/sdl2w/lib -lsdl2w \
+  -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx \
+  -o game
+```
+
+## WebAssembly linking (em++)
+
+`libsdl2w.a` itself does not need Emscripten `-s ...` settings during archive build.  
+Set Emscripten options on your final game link command instead.
+
+Typical wasm final link options include:
+
+- `-L/path/to/sdl2w/lib -lsdl2w`
+- `-s USE_SDL=2`
+- `-s USE_SDL_IMAGE=2`
+- `-s USE_SDL_MIXER=2`
+- `-s USE_SDL_TTF=2`
+- `-s USE_SDL_GFX=2`
+- any runtime/export/memory settings needed by your app (for example `-s EXPORTED_FUNCTIONS=...`, `-s EXPORTED_RUNTIME_METHODS=...`, `--preload-file ...`)
+
+Example:
+
+```
+em++ -std=c++17 -Oz -I/path/to/sdl2w/include main.cpp \
+  -L/path/to/sdl2w/lib -lsdl2w \
+  -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s USE_SDL_MIXER=2 -s USE_SDL_TTF=2 -s USE_SDL_GFX=2 \
+  -s EXPORTED_FUNCTIONS='["_main"]' \
+  -s EXPORTED_RUNTIME_METHODS='["ccall"]' \
+  --preload-file assets \
+  -o game.js
+```

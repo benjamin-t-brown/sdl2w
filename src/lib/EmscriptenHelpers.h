@@ -7,6 +7,7 @@ class Window;
 
 namespace emshelpers {
 void setEmscriptenWindow(sdl2w::Window* window);
+bool isEmscriptenEnv();
 void notifyGameStarted();
 void notifyGameReady();
 void notifyGameCompleted(const std::string& result);

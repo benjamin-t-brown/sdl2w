@@ -5,6 +5,12 @@
 
 namespace sdl2w {
 
+std::unique_ptr<Sprite> Animation::staticDefaultSprite =
+    std::make_unique<Sprite>(Sprite{
+        .name = "staticDefaultSprite",
+        .renderable = Renderable{.tex = nullptr, .surf = nullptr},
+    });
+
 Animation::Animation()
     : name(""), t(0), totalDuration(0), spriteIndex(0), loop(true) {}
 
@@ -59,7 +65,11 @@ const Sprite& Animation::getCurrentSprite() const {
                        "of bounds: "
                     << spriteIndex << " (animation=" << name << ")"
                     << Logger::endl;
-    return storedSprites[0];
+    if (storedSprites.size() > 0) {
+      return storedSprites[0];
+    } else {
+      return *staticDefaultSprite;
+    }
   }
 }
 
