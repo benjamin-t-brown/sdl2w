@@ -12,7 +12,7 @@
 #include <emscripten.h>
 #endif
 
-#if defined(MIYOOA30) || defined(MIYOOMINI)
+#if __has_include(<SDL.h>)
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>

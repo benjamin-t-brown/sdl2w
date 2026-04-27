@@ -6,7 +6,7 @@
 #include <cmath>
 #include <sstream>
 
-#if defined(MIYOOA30) || defined(MIYOOMINI)
+#if __has_include(<SDL.h>)
 #include <SDL.h>
 #include <SDL2_gfxPrimitives.h>
 #include <SDL2_rotozoom.h>
