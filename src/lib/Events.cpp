@@ -1,6 +1,6 @@
 #include "Events.h"
 #include "Logger.h"
-#if defined(MIYOOA30) || defined(MIYOOMINI)
+#if __has_include(<SDL.h>)
 #include <SDL.h>
 #include <SDL_mouse.h>
 #else

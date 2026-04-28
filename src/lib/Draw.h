@@ -7,12 +7,14 @@
 #include <unordered_map>
 #include <utility>
 
-#if defined(MIYOOA30) || defined(MIYOOMINI)
+#if __has_include(<SDL2/SDL_pixels.h>) && __has_include(<SDL2/SDL_stdinc.h>)
+#include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_stdinc.h>
+#elif __has_include(<SDL_pixels.h>) && __has_include(<SDL_stdinc.h>)
 #include <SDL_pixels.h>
 #include <SDL_stdinc.h>
 #else
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_stdinc.h>
+#error "Could not find SDL pixel/stdinc headers in either SDL2/ or root include paths"
 #endif
 
 namespace sdl2w {

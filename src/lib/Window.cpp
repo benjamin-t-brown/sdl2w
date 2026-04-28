@@ -9,7 +9,7 @@
 #include <emscripten/html5.h>
 #endif
 
-#if defined(MIYOOA30) || defined(MIYOOMINI)
+#if __has_include(<SDL.h>)
 #include <SDL.h>
 #include <SDL_audio.h>
 #include <SDL_image.h>
