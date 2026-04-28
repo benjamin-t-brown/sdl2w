@@ -18,19 +18,23 @@
 using namespace sdl2w;
 
 enum UiState { UI_SELECT_ASSET, UI_SHOW_ANIMS };
+enum AssetBrowserTab { TAB_PICTURES, TAB_SOUNDS };
 
 struct State {
   std::vector<std::string> pictures;
   std::vector<std::string> filteredPictures;
   std::vector<std::string> sounds;
+  std::vector<std::string> filteredSounds;
   std::string filter;
   std::string selectedPicturePath;
+  std::string selectedSoundName;
   std::vector<std::string> selectedSpriteNames;
   std::vector<AnimationDefinition> selectedAnimDefinitions;
   std::vector<std::string> selectedAnimNames;
   std::optional<Animation> selectedAnim;
   std::string selectedSpriteName;
   double scale = 2.;
+  AssetBrowserTab assetBrowserTab = TAB_PICTURES;
   UiState uiState = UI_SELECT_ASSET;
 };
 
@@ -416,13 +420,11 @@ void runProgram(int argc,
   const int h = 768;
 
   State state;
-  state.pictures = findFilesRecursive(assetsDirPath, ".png");
-  state.filteredPictures = state.pictures;
-  state.sounds = findFilesRecursive(assetsDirPath, ".wav");
-
-  ScrollableStringList pictureList(4, 50, w - 8, h - 50, 32);
+  ScrollableStringList assetList(4, 50, w - 8, h - 50, 32);
   ScrollableStringList animList(4, 50, w / 2, h / 2 - 50, 32);
   ScrollableStringList spriteList(4, h / 2 + 50, w / 2, h / 2 - 50, 32);
+  Button picturesTabButton = Button(4, 4, 130, 36, "Pictures");
+  Button soundsTabButton = Button(140, 4, 110, 36, "Sounds");
   Button backButton = Button(w - 48, 4, 48, 36, " X");
   Button reloadButton = Button(w - 48 - 110, 4, 100, 36, "Reload");
   Button playButton = Button(w - 48 - 220, 4, 100, 36, "Play");
@@ -457,6 +459,39 @@ void runProgram(int argc,
   AssetLoader assetLoader(window.getDraw(), window.getStore());
   reloadAssets(assetLoader, store, assetLoadConfig);
 
+  auto applyAssetFilter = [&]() {
+    state.filteredPictures.clear();
+    state.filteredSounds.clear();
+    std::string filterLower = toLower(state.filter);
+
+    for (const auto& picture : state.pictures) {
+      if (toLower(picture).find(filterLower) != std::string::npos) {
+        state.filteredPictures.push_back(picture);
+      }
+    }
+    for (const auto& sound : state.sounds) {
+      if (toLower(sound).find(filterLower) != std::string::npos) {
+        state.filteredSounds.push_back(sound);
+      }
+    }
+    assetList.currentPage = 0;
+  };
+
+  auto reloadAssetBrowserData = [&]() {
+    state.pictures = findFilesRecursive(assetsDirPath, ".png");
+    std::sort(state.pictures.begin(), state.pictures.end(), naturalComparator);
+
+    state.sounds.clear();
+    state.sounds.reserve(store.sounds.size());
+    for (const auto& [soundName, sound] : store.sounds) {
+      state.sounds.push_back(soundName);
+    }
+    std::sort(state.sounds.begin(), state.sounds.end(), naturalComparator);
+    applyAssetFilter();
+  };
+
+  reloadAssetBrowserData();
+
   auto& d = window.getDraw();
 
   window.getEvents().setKeyboardEvent(
@@ -469,20 +504,7 @@ void runProgram(int argc,
           } else if (isprint(keyName[0])) {
             state.filter += keyName;
           }
-
-          state.filteredPictures.clear();
-          for (const auto& picture : state.pictures) {
-            std::string pictureLower = toLower(picture);
-            std::string filterLower = toLower(state.filter);
-            if (pictureLower.find(filterLower) != std::string::npos) {
-              state.filteredPictures.push_back(picture);
-            }
-          }
-          pictureList.numScreens =
-              (static_cast<int>(state.filteredPictures.size()) /
-               pictureList.linesPerScreen) +
-              1;
-          pictureList.currentPage = 0;
+          applyAssetFilter();
         } else if (state.uiState == UI_SHOW_ANIMS) {
           if (keyName == "Escape") {
             animList.focusValue.clear();
@@ -502,7 +524,7 @@ void runProgram(int argc,
   window.getEvents().setMouseEvent(
       sdl2w::ON_MOUSE_WHEEL, [&](int x, int y, int wheelY) {
         if (state.uiState == UI_SELECT_ASSET) {
-          pictureList.handleMouseWheel(x, y, wheelY);
+          assetList.handleMouseWheel(x, y, wheelY);
         } else if (state.uiState == UI_SHOW_ANIMS) {
           animList.handleMouseWheel(x, y, wheelY);
           spriteList.handleMouseWheel(x, y, wheelY);
@@ -512,42 +534,48 @@ void runProgram(int argc,
   window.getEvents().setMouseEvent(
       sdl2w::ON_MOUSE_DOWN, [&](int x, int y, int button) {
         if (state.uiState == UI_SELECT_ASSET) {
+          picturesTabButton.handleMousedown(x, y, [&](const std::string&) {
+            state.assetBrowserTab = TAB_PICTURES;
+            assetList.focusValue = state.selectedPicturePath;
+          });
+          soundsTabButton.handleMousedown(x, y, [&](const std::string&) {
+            state.assetBrowserTab = TAB_SOUNDS;
+            assetList.focusValue = state.selectedSoundName;
+          });
           reloadButton.handleMousedown(x, y, [&](const std::string&) {
             LOG(INFO) << "Reloading assets..." << LOG_ENDL;
-            state.pictures = findFilesRecursive(assetsDirPath, ".png");
-            state.sounds = findFilesRecursive(assetsDirPath, ".wav");
             reloadAssets(assetLoader, store, assetLoadConfig);
-            state.filter = "";
-            state.filteredPictures.clear();
-            for (const auto& picture : state.pictures) {
-              std::string pictureLower = toLower(picture);
-              std::string filterLower = toLower(state.filter);
-              if (pictureLower.find(filterLower) != std::string::npos) {
-                state.filteredPictures.push_back(picture);
-              }
-            }
+            reloadAssetBrowserData();
             notifMessage = "Assets reloaded!";
             notifTime = 0;
           });
-          pictureList.handleMouseDown(x, y, [&](const std::string& str) {
-            state.selectedPicturePath = str;
-            state.selectedSpriteNames = getSpriteNamesForPicture(
-                assetLoader, state.selectedPicturePath, assetsDirPath);
+          assetList.handleMouseDown(x, y, [&](const std::string& str) {
+            if (state.assetBrowserTab == TAB_PICTURES) {
+              state.selectedPicturePath = str;
+              state.selectedSpriteNames = getSpriteNamesForPicture(
+                  assetLoader, state.selectedPicturePath, assetsDirPath);
 
-            std::sort(state.selectedSpriteNames.begin(),
-                      state.selectedSpriteNames.end(),
-                      naturalComparator);
-            state.selectedAnimDefinitions =
-                getAnimationDefinitionsFromSpriteNames(
-                    store, state.selectedSpriteNames);
-            state.selectedAnimNames.clear();
-            for (const auto& animDef : state.selectedAnimDefinitions) {
-              state.selectedAnimNames.push_back(animDef.name);
+              std::sort(state.selectedSpriteNames.begin(),
+                        state.selectedSpriteNames.end(),
+                        naturalComparator);
+              state.selectedAnimDefinitions =
+                  getAnimationDefinitionsFromSpriteNames(
+                      store, state.selectedSpriteNames);
+              state.selectedAnimNames.clear();
+              for (const auto& animDef : state.selectedAnimDefinitions) {
+                state.selectedAnimNames.push_back(animDef.name);
+              }
+              std::sort(state.selectedAnimNames.begin(),
+                        state.selectedAnimNames.end(),
+                        naturalComparator);
+              state.uiState = UI_SHOW_ANIMS;
+            } else {
+              state.selectedSoundName = str;
+              assetList.focusValue = str;
+              window.playSound(str);
+              notifMessage = "Playing sound: " + str;
+              notifTime = 0;
             }
-            std::sort(state.selectedAnimNames.begin(),
-                      state.selectedAnimNames.end(),
-                      naturalComparator);
-            state.uiState = UI_SHOW_ANIMS;
           });
         } else if (state.uiState == UI_SHOW_ANIMS) {
           backButton.handleMousedown(x, y, [&](const std::string&) {
@@ -580,10 +608,8 @@ void runProgram(int argc,
           });
           reloadButton.handleMousedown(x, y, [&](const std::string&) {
             LOG(INFO) << "Reloading assets..." << LOG_ENDL;
-            state.pictures = findFilesRecursive(assetsDirPath, ".png");
-            state.filteredPictures = state.pictures;
-            state.sounds = findFilesRecursive(assetsDirPath, ".wav");
             reloadAssets(assetLoader, store, assetLoadConfig);
+            reloadAssetBrowserData();
             state.selectedAnimNames.clear();
             state.selectedAnimDefinitions.clear();
 
@@ -652,7 +678,7 @@ void runProgram(int argc,
   window.getEvents().setMouseEvent(
       sdl2w::ON_MOUSE_MOVE, [&](int x, int y, int button) {
         if (state.uiState == UI_SELECT_ASSET) {
-          pictureList.handleMouseMove(x, y);
+          assetList.handleMouseMove(x, y);
         } else if (state.uiState == UI_SHOW_ANIMS) {
           animList.handleMouseMove(x, y);
           spriteList.handleMouseMove(x, y);
@@ -664,6 +690,12 @@ void runProgram(int argc,
       []() {},
       [&]() {
         if (state.uiState == UI_SELECT_ASSET) {
+          picturesTabButton.bgColor = state.assetBrowserTab == TAB_PICTURES
+                                          ? SDL_Color{70, 110, 180, 255}
+                                          : SDL_Color{50, 50, 50, 255};
+          soundsTabButton.bgColor = state.assetBrowserTab == TAB_SOUNDS
+                                        ? SDL_Color{70, 110, 180, 255}
+                                        : SDL_Color{50, 50, 50, 255};
           d.drawText(
               state.filter.size() > 0 ? state.filter : "<type for filter>",
               sdl2w::RenderTextParams{
@@ -675,7 +707,15 @@ void runProgram(int argc,
                                                : SDL_Color{100, 100, 100},
                   .centered = false,
               });
-          pictureList.render(d, state.filteredPictures);
+          picturesTabButton.render(d);
+          soundsTabButton.render(d);
+          if (state.assetBrowserTab == TAB_PICTURES) {
+            assetList.focusValue = state.selectedPicturePath;
+            assetList.render(d, state.filteredPictures);
+          } else {
+            assetList.focusValue = state.selectedSoundName;
+            assetList.render(d, state.filteredSounds);
+          }
           reloadButton.render(d);
 
         } else if (state.uiState == UI_SHOW_ANIMS) {
