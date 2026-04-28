@@ -13,6 +13,14 @@ lib/EmscriptenHelpers.cpp
 TARGET ?= native
 BASE_BUILD_DIR = build
 
+EMCC_SDL_PORTS=\
+-s USE_SDL=2\
+-s USE_SDL_IMAGE=2\
+-s USE_SDL_MIXER=2\
+-s SDL2_IMAGE_FORMATS='["png"]'\
+-s USE_SDL_TTF=2\
+-s USE_SDL_GFX=2
+
 # On Windows, parallel make + g++ can emit \r and interleave output, showing as garbage (♪◙). Use V=1 to see full commands.
 ifeq ($(V),1)
   Q =
@@ -23,7 +31,7 @@ endif
 DEBUG=true
 ifeq ($(TARGET),wasm)
     INCLUDES= -I.
-    FLAGS = -Wall -std=c++17 -Oz -flto
+    FLAGS = -Wall -std=c++17 -Oz -flto  $(EMCC_SDL_PORTS)
     LIBS =
     CXX = em++
     AR = emar
