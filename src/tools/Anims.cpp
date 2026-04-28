@@ -34,9 +34,16 @@ struct State {
   UiState uiState = UI_SELECT_ASSET;
 };
 
+struct AssetLoadConfig {
+  std::string assetFilePath;
+  std::string deprecatedSpritesFilePath;
+  std::string deprecatedAnimationsFilePath;
+  std::string deprecatedSoundsFilePath;
+};
+
 void reloadAssets(AssetLoader& assetLoader,
                   Store& store,
-                  const std::string& assetFilePath) {
+                  const AssetLoadConfig& assetLoadConfig) {
   store.clear();
   store.loadAndStoreFont(
       "default",
@@ -44,16 +51,54 @@ void reloadAssets(AssetLoader& assetLoader,
                                // relative path or handled differently
   assetLoader.picturePathToAlias.clear();
   assetLoader.spriteNameToPictureAlias.clear();
-  assetLoader.loadAssetsFromFile(sdl2w::ASSET_FILE, assetFilePath);
+
+  if (!assetLoadConfig.assetFilePath.empty()) {
+    assetLoader.loadAssetsFromFile(sdl2w::ASSET_FILE,
+                                   assetLoadConfig.assetFilePath);
+    return;
+  }
+
+  bool loadedAnyDeprecatedFile = false;
+  if (!assetLoadConfig.deprecatedSpritesFilePath.empty()) {
+    assetLoader.loadAssetsFromFile(sdl2w::DEPRECATED_ASSET_TYPE_SPRITE,
+                                   assetLoadConfig.deprecatedSpritesFilePath);
+    loadedAnyDeprecatedFile = true;
+  }
+  if (!assetLoadConfig.deprecatedAnimationsFilePath.empty()) {
+    assetLoader.loadAssetsFromFile(
+        sdl2w::DEPRECATED_ASSET_TYPE_ANIMATION,
+        assetLoadConfig.deprecatedAnimationsFilePath);
+    loadedAnyDeprecatedFile = true;
+  }
+  if (!assetLoadConfig.deprecatedSoundsFilePath.empty()) {
+    assetLoader.loadAssetsFromFile(sdl2w::DEPRECATED_ASSET_TYPE_SOUND,
+                                   assetLoadConfig.deprecatedSoundsFilePath);
+    loadedAnyDeprecatedFile = true;
+  }
+
+  if (!loadedAnyDeprecatedFile) {
+    throw std::runtime_error(
+        "No assets configured. Provide --asset-file <path> for unified asset "
+        "format, or use deprecated file args like --sprites-file/--anims-file."
+    );
+  }
 }
 
 std::vector<std::string> findFilesRecursive(const std::string& path,
                                             const std::string& ext) {
   std::vector<std::string> files;
+  const auto basePath = std::filesystem::path(path);
+  const auto baseName = basePath.filename();
   for (const auto& entry :
        std::filesystem::recursive_directory_iterator(path)) {
     if (entry.is_regular_file() && entry.path().extension() == ext) {
-      files.push_back(entry.path().string());
+      try {
+        const auto rel = std::filesystem::relative(entry.path(), basePath);
+        files.push_back((baseName / rel).generic_string());
+      } catch (const std::exception&) {
+        // Fallback: keep absolute path if relative conversion fails.
+        files.push_back(entry.path().string());
+      }
     }
   }
   return files;
@@ -261,17 +306,73 @@ public:
 
 std::vector<std::string>
 getSpriteNamesForPicture(AssetLoader& assetLoader,
-                         const std::string& picturePath) {
+                         const std::string& picturePath,
+                         const std::string& assetsDirPath) {
   std::vector<std::string> spriteNames;
-  std::string preferredPath =
-      std::filesystem::path(picturePath).make_preferred().string();
-  auto pictureAliasItr = assetLoader.picturePathToAlias.find(preferredPath);
-  if (pictureAliasItr == assetLoader.picturePathToAlias.end()) {
-    LOG(INFO) << "No picture alias found for: " << preferredPath << LOG_ENDL;
-    return spriteNames;
+  const auto selectedPath = std::filesystem::path(picturePath);
+  const std::string selectedFileName = selectedPath.filename().string();
+  std::string pictureAlias;
+  std::string selectedAssetRelativeNorm;
+
+  auto normalizePath = [](const std::filesystem::path& p) {
+    return toLower(p.lexically_normal().generic_string());
+  };
+  const std::string selectedNorm = normalizePath(selectedPath);
+
+  try {
+    const auto assetsDirAbs = std::filesystem::absolute(assetsDirPath);
+    const auto selectedAbs = std::filesystem::absolute(selectedPath);
+    const auto relToAssets = std::filesystem::relative(selectedAbs, assetsDirAbs);
+    const std::string relNorm = normalizePath(relToAssets);
+    if (!(relNorm.size() >= 2 && relNorm[0] == '.' && relNorm[1] == '.')) {
+      selectedAssetRelativeNorm =
+          normalizePath(std::filesystem::path("assets") / relToAssets);
+    }
+  } catch (const std::exception&) {
+    // Best effort only; continue with other matching strategies.
   }
 
-  std::string pictureAlias = pictureAliasItr->second;
+  for (const auto& [loadedPathStr, loadedAlias] :
+       assetLoader.picturePathToAlias) {
+    const auto loadedPath = std::filesystem::path(loadedPathStr);
+    const std::string loadedNorm = normalizePath(loadedPath);
+
+    if (!selectedAssetRelativeNorm.empty() &&
+        loadedNorm == selectedAssetRelativeNorm) {
+      pictureAlias = loadedAlias;
+      break;
+    }
+
+    if (loadedNorm == selectedNorm) {
+      pictureAlias = loadedAlias;
+      break;
+    }
+
+    // Deprecated assets usually store relative paths (assets/foo.png) while the
+    // UI list provides absolute paths; match by filename and, when available,
+    // by canonical path equality.
+    if (loadedPath.filename().string() == selectedFileName) {
+      pictureAlias = loadedAlias;
+      break;
+    }
+
+    try {
+      if (std::filesystem::exists(selectedPath) &&
+          std::filesystem::exists(loadedPath) &&
+          std::filesystem::equivalent(selectedPath, loadedPath)) {
+        pictureAlias = loadedAlias;
+        break;
+      }
+    } catch (const std::exception&) {
+      // Ignore path resolution errors and continue trying other entries.
+    }
+  }
+
+  if (pictureAlias.empty()) {
+    LOG(INFO) << "No picture alias found for selected path: " << picturePath
+              << LOG_ENDL;
+    return spriteNames;
+  }
 
   for (const auto& [spriteName, spritePictureAlias] :
        assetLoader.spriteNameToPictureAlias) {
@@ -310,7 +411,7 @@ std::vector<AnimationDefinition> getAnimationDefinitionsFromSpriteNames(
 void runProgram(int argc,
                 char** argv,
                 const std::string& assetsDirPath,
-                const std::string& assetFilePath) {
+                const AssetLoadConfig& assetLoadConfig) {
   const int w = 1024;
   const int h = 768;
 
@@ -354,7 +455,7 @@ void runProgram(int argc,
   window.getDraw().setBackgroundColor({16, 30, 41});
 
   AssetLoader assetLoader(window.getDraw(), window.getStore());
-  reloadAssets(assetLoader, store, assetFilePath);
+  reloadAssets(assetLoader, store, assetLoadConfig);
 
   auto& d = window.getDraw();
 
@@ -415,7 +516,7 @@ void runProgram(int argc,
             LOG(INFO) << "Reloading assets..." << LOG_ENDL;
             state.pictures = findFilesRecursive(assetsDirPath, ".png");
             state.sounds = findFilesRecursive(assetsDirPath, ".wav");
-            reloadAssets(assetLoader, store, assetFilePath);
+            reloadAssets(assetLoader, store, assetLoadConfig);
             state.filter = "";
             state.filteredPictures.clear();
             for (const auto& picture : state.pictures) {
@@ -431,7 +532,7 @@ void runProgram(int argc,
           pictureList.handleMouseDown(x, y, [&](const std::string& str) {
             state.selectedPicturePath = str;
             state.selectedSpriteNames = getSpriteNamesForPicture(
-                assetLoader, state.selectedPicturePath);
+                assetLoader, state.selectedPicturePath, assetsDirPath);
 
             std::sort(state.selectedSpriteNames.begin(),
                       state.selectedSpriteNames.end(),
@@ -482,13 +583,14 @@ void runProgram(int argc,
             state.pictures = findFilesRecursive(assetsDirPath, ".png");
             state.filteredPictures = state.pictures;
             state.sounds = findFilesRecursive(assetsDirPath, ".wav");
-            reloadAssets(assetLoader, store, assetFilePath);
+            reloadAssets(assetLoader, store, assetLoadConfig);
             state.selectedAnimNames.clear();
             state.selectedAnimDefinitions.clear();
 
             const std::string selectedPicturePath = state.selectedPicturePath;
             state.selectedSpriteNames =
-                getSpriteNamesForPicture(assetLoader, selectedPicturePath);
+                getSpriteNamesForPicture(
+                    assetLoader, selectedPicturePath, assetsDirPath);
             state.selectedAnimDefinitions =
                 getAnimationDefinitionsFromSpriteNames(
                     store, state.selectedSpriteNames);
@@ -648,14 +750,20 @@ int main(int argc, char** argv) {
   LOG(INFO) << "Start program" << LOG_ENDL;
 
   std::string assetsDirPathStr;
-  std::string assetFilePathStr;
+  AssetLoadConfig assetLoadConfig;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     if (arg == "--assets-dir" && i + 1 < argc) {
       assetsDirPathStr = argv[++i];
     } else if (arg == "--asset-file" && i + 1 < argc) {
-      assetFilePathStr = argv[++i];
+      assetLoadConfig.assetFilePath = argv[++i];
+    } else if (arg == "--sprites-file" && i + 1 < argc) {
+      assetLoadConfig.deprecatedSpritesFilePath = argv[++i];
+    } else if (arg == "--anims-file" && i + 1 < argc) {
+      assetLoadConfig.deprecatedAnimationsFilePath = argv[++i];
+    } else if (arg == "--sounds-file" && i + 1 < argc) {
+      assetLoadConfig.deprecatedSoundsFilePath = argv[++i];
     }
   }
 
@@ -663,14 +771,77 @@ int main(int argc, char** argv) {
     std::cerr << "Error: --assets-dir <path> is a required argument."
               << std::endl;
     std::cerr << "Usage: " << argv[0]
-              << " --assets-dir <path> --asset-file <path>" << std::endl;
+              << " --assets-dir <path> [--asset-file <path>] [--sprites-file "
+                 "<path>] [--anims-file <path>] [--sounds-file <path>]"
+              << std::endl;
     return 1;
   }
-  if (assetFilePathStr.empty()) {
-    std::cerr << "Error: --asset-file <path> is a required argument."
-              << std::endl;
+  // Back-compat: if --asset-file points to deprecated anims.txt, treat it as
+  // deprecated mode and auto-wire sprites/sounds from same directory.
+  if (!assetLoadConfig.assetFilePath.empty()) {
+    const auto assetPath = std::filesystem::path(assetLoadConfig.assetFilePath);
+    const std::string filename = assetPath.filename().string();
+    if (filename == "anims.txt") {
+      const auto assetDir = assetPath.parent_path();
+      if (assetLoadConfig.deprecatedAnimationsFilePath.empty()) {
+        assetLoadConfig.deprecatedAnimationsFilePath = assetPath.string();
+      }
+      if (assetLoadConfig.deprecatedSpritesFilePath.empty()) {
+        const auto spritesPath = assetDir / "sprites.txt";
+        if (std::filesystem::exists(spritesPath)) {
+          assetLoadConfig.deprecatedSpritesFilePath = spritesPath.string();
+        }
+      }
+      if (assetLoadConfig.deprecatedSoundsFilePath.empty()) {
+        const auto soundsPath = assetDir / "sounds.txt";
+        if (std::filesystem::exists(soundsPath)) {
+          assetLoadConfig.deprecatedSoundsFilePath = soundsPath.string();
+        }
+      }
+      assetLoadConfig.assetFilePath.clear();
+    }
+  }
+
+  // Default deprecated file locations from assets dir when not explicitly set.
+  if (assetLoadConfig.assetFilePath.empty()) {
+    if (assetLoadConfig.deprecatedSpritesFilePath.empty()) {
+      const auto spritesPath =
+          std::filesystem::path(assetsDirPathStr) / "sprites.txt";
+      if (std::filesystem::exists(spritesPath)) {
+        assetLoadConfig.deprecatedSpritesFilePath = spritesPath.string();
+      }
+    }
+    if (assetLoadConfig.deprecatedAnimationsFilePath.empty()) {
+      const auto animsPath =
+          std::filesystem::path(assetsDirPathStr) / "anims.txt";
+      if (std::filesystem::exists(animsPath)) {
+        assetLoadConfig.deprecatedAnimationsFilePath = animsPath.string();
+      }
+    }
+    if (assetLoadConfig.deprecatedSoundsFilePath.empty()) {
+      const auto soundsPath =
+          std::filesystem::path(assetsDirPathStr) / "sounds.txt";
+      if (std::filesystem::exists(soundsPath)) {
+        assetLoadConfig.deprecatedSoundsFilePath = soundsPath.string();
+      }
+    }
+  }
+
+  const bool hasUnifiedAssetFile = !assetLoadConfig.assetFilePath.empty();
+  const bool hasDeprecatedAssetFiles =
+      !assetLoadConfig.deprecatedSpritesFilePath.empty() ||
+      !assetLoadConfig.deprecatedAnimationsFilePath.empty() ||
+      !assetLoadConfig.deprecatedSoundsFilePath.empty();
+  if (!hasUnifiedAssetFile && !hasDeprecatedAssetFiles) {
+    std::cerr
+        << "Error: no asset files configured. Provide either --asset-file "
+           "<path> (unified format), or deprecated args: --sprites-file "
+           "<path> --anims-file <path> --sounds-file <path>."
+        << std::endl;
     std::cerr << "Usage: " << argv[0]
-              << " --assets-dir <path> --asset-file <path>" << std::endl;
+              << " --assets-dir <path> [--asset-file <path>] [--sprites-file "
+                 "<path>] [--anims-file <path>] [--sounds-file <path>]"
+              << std::endl;
     return 1;
   }
 
@@ -684,7 +855,7 @@ int main(int argc, char** argv) {
   sdl2w::Window::init();
   srand(time(NULL));
 
-  runProgram(argc, argv, assetsDirPathStr, assetFilePathStr);
+  runProgram(argc, argv, assetsDirPathStr, assetLoadConfig);
 
   sdl2w::Window::unInit();
   LOG(INFO) << "End program" << LOG_ENDL;
