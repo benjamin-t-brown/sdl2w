@@ -28,30 +28,21 @@ ifeq ($(TARGET),wasm)
     CXX = em++
     AR = emar
 else
-    INCLUDES= -I.
-    FLAGS= -Wall -std=c++17
-    AR = ar
+    INCLUDES += -I.
+    FLAGS += -Wall -std=c++17
     ifeq ($(OS),Windows_NT)
-        LIBS = -mconsole -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
+        LIBS += -mconsole -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
     else
         UNAME_S := $(shell uname -s)
         ifeq ($(UNAME_S),Darwin)
-            LIBS = -L/opt/homebrew/lib -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
+            LIBS += -L/opt/homebrew/lib -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
             INCLUDES += -I/opt/homebrew/include -I/usr/local/include
         else
-            LIBS = -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
+            LIBS += -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
         endif
     endif
     ifeq ($(DEBUG),true)
         FLAGS += -g
-    endif
-    ifeq ($(TARGET),miyoo)
-        AS=arm-linux-gnueabihf-as
-        CC=arm-linux-gnueabihf-gcc
-        CXX=arm-linux-gnueabihf-g++
-        LD=arm-linux-gnueabihf-ld
-    else
-        CXX = g++
     endif
 endif
 TARGET_SUFFIX = $(TARGET)
@@ -78,9 +69,6 @@ native:
 
 wasm:
 	@$(MAKE) all TARGET=wasm
-
-miyoo:
-	@$(MAKE) all TARGET=miyoo
 
 files:
 	@echo $(CODE)
