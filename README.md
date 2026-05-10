@@ -2,9 +2,6 @@
 
 SDL2W - SDL2 Wrapper
 
-<img width="1313" height="975" alt="image" src="https://github.com/user-attachments/assets/bdb04dfe-c99a-4efb-80c4-6556a611ac7d" />
-
-
 This is an opinionated C++17 library which wraps SDL2 functionality and includes the following features:
 
 - Window and Renderer creation
@@ -123,6 +120,8 @@ npm run dist
 ```
 
 This starts an http server that points at the build.
+
+<img width="1313" height="975" alt="image" src="https://github.com/user-attachments/assets/bdb04dfe-c99a-4efb-80c4-6556a611ac7d" />
 
 # Linking SDL2W in your game
 
