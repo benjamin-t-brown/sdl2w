@@ -1,9 +1,14 @@
 #include "EmscriptenHelpers.h"
 #include "Logger.h"
 #include "Window.h"
+#include <string>
 
 #ifdef __EMSCRIPTEN__
+#if __has_include(<SDL_mixer.h>)
+#include <SDL_mixer.h>
+#else
 #include <SDL2/SDL_mixer.h>
+#endif
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #endif
@@ -45,17 +50,17 @@ void notifyGameReady() {
   emscripten_run_script(script.c_str());
 #endif
 }
-void notifyGameCompleted(const std::string& result) {
+void notifyGameCompleted(std::string_view result) {
 #ifdef __EMSCRIPTEN__
-  const std::string script =
-      std::string("window.Lib.notifyGameCompleted('" + result + "')");
+  const std::string script = std::string("window.Lib.notifyGameCompleted('") +
+                             std::string(result) + "')";
   emscripten_run_script(script.c_str());
 #endif
 }
-void notifyGameGeneric(const std::string& payload) {
+void notifyGameGeneric(std::string_view payload) {
 #ifdef __EMSCRIPTEN__
-  const std::string script =
-      std::string("window.Lib.notifyGameGeneric('" + payload + "')");
+  const std::string script = std::string("window.Lib.notifyGameGeneric('") +
+                             std::string(payload) + "')";
   emscripten_run_script(script.c_str());
 #endif
 }

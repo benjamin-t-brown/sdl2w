@@ -6,6 +6,7 @@
 #include <deque>
 #include <functional>
 #include <string>
+#include <string_view>
 
 namespace sdl2w {
 
@@ -84,8 +85,8 @@ public:
   int getSoundPct() const { return soundPct; }
   void setMusicPct(int pct);
   int getMusicPct() const { return musicPct; }
-  void playSound(const std::string& name);
-  void playMusic(const std::string& name);
+  void playSound(std::string_view name);
+  void playMusic(std::string_view name);
   void stopMusic();
   bool isMusicPlaying() const;
   std::pair<int, int> getDims() const;

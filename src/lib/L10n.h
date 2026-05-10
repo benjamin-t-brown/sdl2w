@@ -13,6 +13,7 @@ drawText(TRANSLATE("Example Text")), {});
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -31,9 +32,8 @@ class L10n {
 
 public:
   static void init(const std::vector<std::string>& langs = {"en"});
-  static void loadLanguage(const std::string& lang,
-                           const std::string& langFile);
-  static void setLanguage(const std::string& lang);
+  static void loadLanguage(std::string_view lang, std::string_view langText);
+  static void setLanguage(std::string_view lang);
   static void setEnabled(bool enabled);
   static bool isEnabled();
   static const std::unordered_map<size_t, std::string>& getStrings();

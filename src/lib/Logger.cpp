@@ -1,5 +1,7 @@
 #include "Logger.h"
 #include <regex>
+#include <string>
+#include <string_view>
 #include <stdarg.h>
 #include <stdexcept>
 #include <stdlib.h>
@@ -23,9 +25,9 @@
 
 namespace sdl2w {
 
-static std::string removeANSIEscapeCodes(const std::string& str) {
+static std::string removeANSIEscapeCodes(std::string_view str) {
   static const std::regex ansiRegex("\x1B\\[[0-9;]*m");
-  return std::regex_replace(str, ansiRegex, "");
+  return std::regex_replace(std::string(str), ansiRegex, "");
 }
 
 const std::string Logger::endl = std::string("\n");
@@ -194,27 +196,28 @@ std::string Logger::getStackTrace() {
 #endif
 }
 
-[[noreturn]] void Logger::throwRuntimeError(const std::string& msg) {
+[[noreturn]] void Logger::throwRuntimeError(std::string_view msg) {
   throwRuntimeError(msg, nullptr, 0);
 }
 
-[[noreturn]] void Logger::throwRuntimeError(const std::string& msg,
+[[noreturn]] void Logger::throwRuntimeError(std::string_view msg,
                                             const char* file, int line) {
+  const std::string msgStr(msg);
   const std::string trace = getStackTrace();
   if (file != nullptr) {
-    Logger().get(ERROR, file, line) << msg << Logger::endl;
+    Logger().get(ERROR, file, line) << msgStr << Logger::endl;
     if (!trace.empty()) {
       Logger().get(ERROR, file, line) << "Stack trace:\n"
                                       << trace << Logger::endl;
     }
   } else {
-    Logger().get(ERROR) << msg << Logger::endl;
+    Logger().get(ERROR) << msgStr << Logger::endl;
     if (!trace.empty()) {
       Logger().get(ERROR) << "Stack trace:\n" << trace << Logger::endl;
     }
   }
 
-  std::string exceptionMsg = msg;
+  std::string exceptionMsg = msgStr;
   if (!trace.empty()) {
     exceptionMsg += "\nStack trace:\n";
     exceptionMsg += trace;

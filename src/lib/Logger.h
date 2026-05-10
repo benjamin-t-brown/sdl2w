@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace sdl2w {
 
@@ -37,9 +38,9 @@ public:
   int printf(const char* format, ...);
 
   static std::string getStackTrace();
-  [[noreturn]] static void throwRuntimeError(const std::string& msg);
+  [[noreturn]] static void throwRuntimeError(std::string_view msg);
   [[noreturn]] static void
-  throwRuntimeError(const std::string& msg, const char* file, int line);
+  throwRuntimeError(std::string_view msg, const char* file, int line);
 };
 
 } // namespace sdl2w

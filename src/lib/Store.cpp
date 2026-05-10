@@ -4,6 +4,7 @@
 #include "Draw.h"
 #include "Logger.h"
 #include <algorithm>
+#include <string_view>
 
 #if __has_include(<SDL.h>)
 #include <SDL.h>
@@ -64,58 +65,65 @@ void SDL_Deleter::operator()(SDL_Joystick* p) const {
   // }
 }
 
-void Store::storeTexture(const std::string& name, SDL_Texture* tex) {
+void Store::storeTexture(std::string_view name, SDL_Texture* tex) {
+  const std::string nameStr(name);
   // LOG_LINE(DEBUG) << "[sdl2w] Store texture: " << name << Logger::endl;
-  if (textures.find(name) != textures.end()) {
+  if (textures.find(nameStr) != textures.end()) {
     LOG(WARN) << "[sdl2w] WARNING Texture with name '" << name
               << "' already exists. '" << name << "'" << Logger::endl;
   }
-  textures[name] = std::unique_ptr<SDL_Texture, SDL_Deleter>(tex);
+  textures[nameStr] = std::unique_ptr<SDL_Texture, SDL_Deleter>(tex);
 }
 
-void Store::storeDynamicTexture(const std::string& name, SDL_Texture* tex) {
+void Store::storeDynamicTexture(std::string_view name, SDL_Texture* tex) {
   // LOG_LINE(DEBUG) << "[sdl2w] Store dynamic texture: " << name <<
   // Logger::endl;
-  dynamicTextures[name] = std::unique_ptr<SDL_Texture, SDL_Deleter>(tex);
+  dynamicTextures[std::string(name)] =
+      std::unique_ptr<SDL_Texture, SDL_Deleter>(tex);
 }
 
-void Store::storeSurface(const std::string& name, SDL_Surface* surf) {
+void Store::storeSurface(std::string_view name, SDL_Surface* surf) {
+  const std::string nameStr(name);
   // LOG_LINE(DEBUG) << "[sdl2w] Store surface: " << name << Logger::endl;
-  if (surfaces.find(name) != surfaces.end()) {
+  if (surfaces.find(nameStr) != surfaces.end()) {
     LOG(WARN) << "[sdl2w] WARNING Surface with name '" << name
               << "' already exists. '" << name << "'" << Logger::endl;
   }
-  surfaces[name] = std::unique_ptr<SDL_Surface, SDL_Deleter>(surf);
+  surfaces[nameStr] = std::unique_ptr<SDL_Surface, SDL_Deleter>(surf);
 }
 
-void Store::storeDynamicSurface(const std::string& name, SDL_Surface* surf) {
+void Store::storeDynamicSurface(std::string_view name, SDL_Surface* surf) {
   // LOG_LINE(DEBUG) << "[sdl2w] Store dynamic surface: " << name <<
   // Logger::endl;
-  dynamicSurfaces[name] = std::unique_ptr<SDL_Surface, SDL_Deleter>(surf);
+  dynamicSurfaces[std::string(name)] =
+      std::unique_ptr<SDL_Surface, SDL_Deleter>(surf);
 }
 
-void Store::storeSprite(const std::string& name, Sprite* sprite) {
-  if (sprites.find(name) != sprites.end()) {
+void Store::storeSprite(std::string_view name, Sprite* sprite) {
+  const std::string nameStr(name);
+  if (sprites.find(nameStr) != sprites.end()) {
     LOG(WARN) << "[sdl2w] WARNING Sprite with name '" << name
               << "' already exists. '" << name << "'" << Logger::endl;
   }
-  sprites[name] = std::unique_ptr<Sprite>(sprite);
+  sprites[nameStr] = std::unique_ptr<Sprite>(sprite);
 }
 
-AnimationDefinition& Store::storeAnimationDefinition(const std::string& name,
-                                                     const bool loop) {
-  if (anims.find(name) == anims.end()) {
-    anims[name] = std::make_unique<AnimationDefinition>(name, loop);
+AnimationDefinition& Store::storeAnimationDefinition(std::string_view name,
+                                                       const bool loop) {
+  const std::string nameStr(name);
+  if (anims.find(nameStr) == anims.end()) {
+    anims[nameStr] = std::make_unique<AnimationDefinition>(nameStr, loop);
   } else {
     LOG(WARN) << "[sdl2w] WARNING Cannot store new anim, it already "
                  "exists: '" +
-                     name + "'"
+                     nameStr + "'"
               << Logger::endl;
   }
-  return *anims[name];
+  return *anims[nameStr];
 }
 
-void Store::loadAndStoreFont(const std::string& name, const std::string& path) {
+void Store::loadAndStoreFont(std::string_view name, std::string_view path) {
+  const std::string pathStr(path);
   static const std::vector<int> sizes = {TEXT_SIZE_10,
                                          TEXT_SIZE_12,
                                          TEXT_SIZE_14,
@@ -133,109 +141,124 @@ void Store::loadAndStoreFont(const std::string& name, const std::string& path) {
                                          TEXT_SIZE_72};
 
   for (const int& size : sizes) {
-    const std::string key = name + std::to_string(size);
+    const std::string key = std::string(name) + std::to_string(size);
     fonts[key] = std::unique_ptr<TTF_Font, SDL_Deleter>(
-        TTF_OpenFont(path.c_str(), size));
+        TTF_OpenFont(pathStr.c_str(), size));
 
     if (!fonts[key]) {
-      throw std::string("[sdl2w] ERROR Failed to load font '" + path +
+      throw std::string("[sdl2w] ERROR Failed to load font '" + pathStr +
                         "': reason= " + std::string(SDL_GetError()));
     }
 
     fonts[key + "o"] = std::unique_ptr<TTF_Font, SDL_Deleter>(
-        TTF_OpenFont(path.c_str(), size));
+        TTF_OpenFont(pathStr.c_str(), size));
     TTF_SetFontOutline(fonts[key + "o"].get(), 1);
   }
 }
 
-void Store::createFontAlias(const std::string& aliasName,
-                            const std::string& loadedFontName) {
-  if (fontAliases.find(aliasName) != fontAliases.end()) {
+void Store::createFontAlias(std::string_view aliasName,
+                            std::string_view loadedFontName) {
+  const std::string aliasStr(aliasName);
+  if (fontAliases.find(aliasStr) != fontAliases.end()) {
     LOG(WARN) << "[sdl2w] WARNING Font alias with name '" << aliasName
               << "' already exists to '" << loadedFontName << "'"
               << Logger::endl;
   }
-  fontAliases[aliasName] = loadedFontName;
+  fontAliases[aliasStr] = std::string(loadedFontName);
 }
 
-void Store::storeSound(const std::string& name, const std::string& path) {
-  if (sounds.find(name) != sounds.end()) {
+void Store::storeSound(std::string_view name, std::string_view path) {
+  const std::string nameStr(name);
+  const std::string pathStr(path);
+  if (sounds.find(nameStr) != sounds.end()) {
     LOG(WARN) << "[sdl2w] WARNING Sound with name '" << name
               << "' already exists. '" << name << "'" << Logger::endl;
   }
 
-  sounds[name] =
-      std::unique_ptr<Mix_Chunk, SDL_Deleter>(Mix_LoadWAV(path.c_str()));
-  if (!sounds[name]) {
+  sounds[nameStr] = std::unique_ptr<Mix_Chunk, SDL_Deleter>(
+      Mix_LoadWAV(pathStr.c_str()));
+  if (!sounds[nameStr]) {
     THROW_RUNTIME_ERROR(
-        std::string("[sdl2w] ERROR Failed to load sound '" + path +
+        std::string("[sdl2w] ERROR Failed to load sound '" + pathStr +
                     "': reason= " + std::string(Mix_GetError())));
   }
 }
 
-void Store::storeMusic(const std::string& name, const std::string& path) {
-  if (musics.find(name) != musics.end()) {
+void Store::storeMusic(std::string_view name, std::string_view path) {
+  const std::string nameStr(name);
+  const std::string pathStr(path);
+  if (musics.find(nameStr) != musics.end()) {
     LOG(WARN) << "[sdl2w] WARNING Music with name '" << name
               << "' already exists. '" << name << "'" << Logger::endl;
   }
 
-  musics[name] = std::unique_ptr<Mix_Music, SDL_Deleter>(
-      Mix_LoadMUS(path.c_str()), SDL_Deleter());
-  if (!musics[name]) {
+  musics[nameStr] = std::unique_ptr<Mix_Music, SDL_Deleter>(
+      Mix_LoadMUS(pathStr.c_str()), SDL_Deleter());
+  if (!musics[nameStr]) {
     THROW_RUNTIME_ERROR(
-        std::string("[sdl2w] ERROR Failed to load music '" + path +
+        std::string("[sdl2w] ERROR Failed to load music '" + pathStr +
                     "': reason= " + std::string(Mix_GetError())));
   }
 }
 
-SDL_Texture* Store::getTexture(const std::string& name) {
-  auto pair = textures.find(name);
+SDL_Texture* Store::getTexture(std::string_view name) {
+  const std::string nameStr(name);
+  auto pair = textures.find(nameStr);
   if (pair != textures.end()) {
     return pair->second.get();
   } else {
-    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Texture '" + name +
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Texture '" + nameStr +
                         "' because it has not been loaded.");
   }
 }
-SDL_Texture* Store::getDynamicTexture(const std::string& name) {
-  auto pair = dynamicTextures.find(name);
+SDL_Texture* Store::getDynamicTexture(std::string_view name) {
+  const std::string nameStr(name);
+  auto pair = dynamicTextures.find(nameStr);
   if (pair != dynamicTextures.end()) {
     return pair->second.get();
   } else {
-    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get DynamicTexture '" + name +
-                        "' because it has not been loaded.");
-  }
-}
-SDL_Surface* Store::getSurface(const std::string& name) {
-  auto pair = surfaces.find(name);
-  if (pair != surfaces.end()) {
-    return pair->second.get();
-  } else {
-    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Surface '" + name +
-                        "' because it has not been loaded.");
-  }
-}
-SDL_Surface* Store::getDynamicSurface(const std::string& name) {
-  auto pair = dynamicSurfaces.find(name);
-  if (pair != dynamicSurfaces.end()) {
-    return pair->second.get();
-  } else {
-    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get DynamicSurface '" + name +
-                        "' because it has not been loaded.");
-  }
-}
-Sprite& Store::getSprite(const std::string& name) {
-  auto pair = sprites.find(name);
-  if (pair != sprites.end()) {
-    return *pair->second.get();
-  } else {
-    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Sprite '" + name +
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get DynamicTexture '" + nameStr +
                         "' because it has not been loaded.");
   }
 }
 
-AnimationDefinition& Store::getAnimationDefinition(const std::string& name) {
-  auto pair = anims.find(name);
+SDL_Texture* Store::getTextTexture(std::string_view name) {
+  return getDynamicTexture(name);
+}
+SDL_Surface* Store::getSurface(std::string_view name) {
+  const std::string nameStr(name);
+  auto pair = surfaces.find(nameStr);
+  if (pair != surfaces.end()) {
+    return pair->second.get();
+  } else {
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Surface '" + nameStr +
+                        "' because it has not been loaded.");
+  }
+}
+SDL_Surface* Store::getDynamicSurface(std::string_view name) {
+  const std::string nameStr(name);
+  auto pair = dynamicSurfaces.find(nameStr);
+  if (pair != dynamicSurfaces.end()) {
+    return pair->second.get();
+  } else {
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get DynamicSurface '" + nameStr +
+                        "' because it has not been loaded.");
+  }
+}
+Sprite& Store::getSprite(std::string_view name) {
+  const std::string nameStr(name);
+  auto pair = sprites.find(nameStr);
+  if (pair != sprites.end()) {
+    return *pair->second.get();
+  } else {
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Sprite '" + nameStr +
+                        "' because it has not been loaded.");
+  }
+}
+
+AnimationDefinition& Store::getAnimationDefinition(std::string_view name) {
+  const std::string nameStr(name);
+  auto pair = anims.find(nameStr);
   if (pair != anims.end()) {
     return *pair->second;
   } else {
@@ -246,15 +269,15 @@ AnimationDefinition& Store::getAnimationDefinition(const std::string& name) {
     //                 << Logger::getStackTrace() << Logger::endl;
     // return defaultAnimDef;
     THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get AnimationDefinition '" +
-                        name + "' because it has not been loaded.");
+                        nameStr + "' because it has not been loaded.");
   }
 }
 
 TTF_Font*
-Store::getFont(const std::string& name, const int sz, const bool isOutline) {
-  std::string innerName = name;
-  if (fontAliases.find(name) != fontAliases.end()) {
-    innerName = fontAliases[name];
+Store::getFont(std::string_view name, const int sz, const bool isOutline) {
+  std::string innerName(name);
+  if (fontAliases.find(innerName) != fontAliases.end()) {
+    innerName = fontAliases[innerName];
   }
 
   const std::string key =
@@ -268,26 +291,28 @@ Store::getFont(const std::string& name, const int sz, const bool isOutline) {
   }
 }
 
-Mix_Chunk* Store::getSound(const std::string& name) {
-  auto pair = sounds.find(name);
+Mix_Chunk* Store::getSound(std::string_view name) {
+  const std::string nameStr(name);
+  auto pair = sounds.find(nameStr);
   if (pair != sounds.end()) {
     return pair->second.get();
   } else {
-    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Sound '" + name +
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Sound '" + nameStr +
                         "' because it has not been loaded.");
   }
 }
-Mix_Music* Store::getMusic(const std::string& name) {
-  auto pair = musics.find(name);
+Mix_Music* Store::getMusic(std::string_view name) {
+  const std::string nameStr(name);
+  auto pair = musics.find(nameStr);
   if (pair != musics.end()) {
     return pair->second.get();
   } else {
-    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Music '" + name +
+    THROW_RUNTIME_ERROR("[sdl2w] ERROR Cannot get Music '" + nameStr +
                         "' because it has not been loaded.");
   }
 }
 
-Animation Store::createAnimation(const std::string& name, bool flipped) {
+Animation Store::createAnimation(std::string_view name, bool flipped) {
   auto& def = getAnimationDefinition(name);
   Animation anim(def.name, def.loop);
   for (auto& spriteDef : def.sprites) {
@@ -298,9 +323,10 @@ Animation Store::createAnimation(const std::string& name, bool flipped) {
   return anim;
 }
 
-bool Store::hasDynamicTextureOrSurface(const std::string& name) {
-  return (dynamicSurfaces.find(name) != dynamicSurfaces.end() ||
-          dynamicTextures.find(name) != dynamicTextures.end());
+bool Store::hasDynamicTextureOrSurface(std::string_view name) {
+  const std::string nameStr(name);
+  return (dynamicSurfaces.find(nameStr) != dynamicSurfaces.end() ||
+          dynamicTextures.find(nameStr) != dynamicTextures.end());
 }
 
 void Store::logAllSprites() {

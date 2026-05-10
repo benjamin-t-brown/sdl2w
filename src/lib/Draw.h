@@ -4,6 +4,7 @@
 #include "Defines.h"
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 
@@ -100,10 +101,10 @@ class Draw {
   int globalAlpha = 255;
   std::unordered_map<std::string, bool> invalidSpriteWarnings;
 
-  Renderable getTextRenderable(const std::string& text,
+  Renderable getTextRenderable(std::string_view text,
                                const RenderTextParams& params);
   SDL_Surface* getRotatedSurface(SDL_Surface* originalSurface,
-                                 const std::string& name,
+                                 std::string_view name,
                                  double angleDeg,
                                  const RenderableParamsEx& params);
 
@@ -138,8 +139,8 @@ public:
   void drawSprite(const Sprite& sprite, const RenderableParamsEx& params);
   void drawAnimation(const Animation& anim, const RenderableParams& params);
   void drawAnimation(const Animation& anim, const RenderableParamsEx& params);
-  void drawText(const std::string& text, const RenderTextParams& params);
-  std::pair<int, int> measureText(const std::string& text,
+  void drawText(std::string_view text, const RenderTextParams& params);
+  std::pair<int, int> measureText(std::string_view text,
                                   const RenderTextParams& params);
   void drawRect(int x, int y, int w, int h, const SDL_Color& color);
   void drawLine(const std::pair<int, int>& from,

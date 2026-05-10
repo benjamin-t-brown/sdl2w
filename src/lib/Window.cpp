@@ -88,7 +88,7 @@ void Window::setMusicPct(int pct) {
       static_cast<int>(double(musicPct) / 100.0 * double(MIX_MAX_VOLUME)));
 }
 
-void Window::playSound(const std::string& name) {
+void Window::playSound(std::string_view name) {
   if (!_soundEnabled) {
     return;
   }
@@ -105,7 +105,7 @@ void Window::playSound(const std::string& name) {
       static_cast<int>(double(soundPct) / 100.0 * double(MIX_MAX_VOLUME)));
 }
 
-void Window::playMusic(const std::string& name) {
+void Window::playMusic(std::string_view name) {
   if (!_soundEnabled) {
     return;
   }

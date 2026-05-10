@@ -6,6 +6,8 @@
 #include <map>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #ifdef __EMSCRIPTEN__
@@ -29,7 +31,7 @@ namespace sdl2w {
 
 bool AssetLoader::fsReady = false;
 
-std::string slice(const std::string& str, int start, int end) {
+std::string slice(std::string_view str, int start, int end) {
   const int len = static_cast<int>(str.length());
 
   // Normalize start index to be like JavaScript's slice
@@ -47,26 +49,28 @@ std::string slice(const std::string& str, int start, int end) {
     return std::string(); // Return empty string if range is invalid or empty
   }
 
-  return str.substr(actualStart, actualEnd - actualStart);
+  return std::string(
+      str.substr(static_cast<size_t>(actualStart),
+                 static_cast<size_t>(actualEnd - actualStart)));
 }
 
-std::string trim(const std::string& str) {
+std::string trim(std::string_view str) {
   const char* whitespace = " \n\r\t"; // Define whitespace characters
 
   const auto strBegin = str.find_first_not_of(whitespace);
-  if (strBegin == std::string::npos) {
+  if (strBegin == std::string_view::npos) {
     return ""; // String contains only whitespace or is empty
   }
 
   const auto strEnd = str.find_last_not_of(whitespace);
   // No need to check for npos for strEnd, as strBegin found something
 
-  return str.substr(strBegin, strEnd - strBegin + 1);
+  return std::string(str.substr(strBegin, strEnd - strBegin + 1));
 }
 
 void split(
-    const std::string& str,
-    const std::string& delimiter, // Renamed 'token' to 'delimiter' for clarity
+    std::string_view str,
+    std::string_view delimiter, // Renamed 'token' to 'delimiter' for clarity
     std::vector<std::string>& out) {
   // Note: JS split returns a new array. This function appends to 'out'.
   // If 'out' should be cleared first, add out.clear(); here.
@@ -90,13 +94,13 @@ void split(
   size_t lastPos = 0;
   size_t findPos = 0;
 
-  while ((findPos = str.find(delimiter, lastPos)) != std::string::npos) {
-    out.push_back(str.substr(lastPos, findPos - lastPos));
+  while ((findPos = str.find(delimiter, lastPos)) != std::string_view::npos) {
+    out.emplace_back(str.substr(lastPos, findPos - lastPos));
     lastPos = findPos + delimiter.length();
   }
   // Add the last part of the string (or the whole string if delimiter not
   // found)
-  out.push_back(str.substr(lastPos));
+  out.emplace_back(str.substr(lastPos));
 }
 
 SDL_Surface* flipSurfaceHorizontal(SDL_Surface* surface) {
@@ -137,14 +141,13 @@ SDL_Surface* flipSurfaceHorizontal(SDL_Surface* surface) {
   return flipped;
 }
 
-bool strEndsWith(const std::string& fullString, const std::string& ending) {
+bool strEndsWith(std::string_view fullString, std::string_view ending) {
   if (fullString.length() >= ending.length()) {
-    return (0 == fullString.compare(fullString.length() - ending.length(),
-                                    ending.length(),
-                                    ending));
-  } else {
-    return false;
+    return fullString.compare(fullString.length() - ending.length(),
+                              ending.length(),
+                              ending) == 0;
   }
+  return false;
 }
 
 #ifdef __EMSCRIPTEN__
@@ -200,17 +203,16 @@ void AssetLoader::initFs() {
 #endif
 }
 
-void AssetLoader::loadPicture(const std::string& name,
-                              const std::string& path) {
-  SDL_Surface* loadedImage = IMG_Load(path.c_str());
+void AssetLoader::loadPicture(std::string_view name, std::string_view path) {
+  const std::string pathStr(path);
+  SDL_Surface* loadedImage = IMG_Load(pathStr.c_str());
 
   if (loadedImage == nullptr) {
     LOG_LINE(ERROR) << "[sdl2w] ERROR Failed to load image: " << name << " ("
                     << path << ")" << Logger::endl;
     throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
   }
-  std::string preferredPath = path;
-  picturePathToAlias[preferredPath] = name;
+  picturePathToAlias[pathStr] = std::string(name);
 
   SDL_Texture* tex = draw.createTexture(loadedImage);
   store.storeTexture(name, tex);
@@ -219,24 +221,26 @@ void AssetLoader::loadPicture(const std::string& name,
 
   // surfaces need to be manually flipped
   SDL_Surface* flippedImage = flipSurfaceHorizontal(loadedImage);
-  store.storeSurface(name + std::string(SPRITE_FLIPPED), flippedImage);
-  loadSprite(name + std::string(SPRITE_FLIPPED), tex, flippedImage, true);
+  const std::string flippedName = std::string(name) + std::string(SPRITE_FLIPPED);
+  store.storeSurface(flippedName, flippedImage);
+  loadSprite(flippedName, tex, flippedImage, true);
 }
 
-void AssetLoader::loadSprite(const std::string& name,
+void AssetLoader::loadSprite(std::string_view name,
                              SDL_Texture* tex,
                              SDL_Surface* surf,
                              bool flipped) {
   int width;
   int height;
   SDL_QueryTexture(tex, nullptr, nullptr, &width, &height);
+  const std::string nameStr(name);
   store.storeSprite(
-      name,
+      nameStr,
       new Sprite{
-          name, Renderable{tex, surf}, 0, 0, width, height, width, flipped});
+          nameStr, Renderable{tex, surf}, 0, 0, width, height, width, flipped});
 }
 
-void AssetLoader::loadSprite(const std::string& name,
+void AssetLoader::loadSprite(std::string_view name,
                              SDL_Texture* tex,
                              SDL_Surface* surf,
                              int spritesheetWidth,
@@ -245,29 +249,37 @@ void AssetLoader::loadSprite(const std::string& name,
                              int w,
                              int h,
                              bool flipped) {
+  const std::string nameStr(name);
   store.storeSprite(
-      name,
-      new Sprite{
-          name, Renderable{tex, surf}, x, y, w, h, spritesheetWidth, flipped});
+      nameStr,
+      new Sprite{nameStr,
+                 Renderable{tex, surf},
+                 x,
+                 y,
+                 w,
+                 h,
+                 spritesheetWidth,
+                 flipped});
 }
 
-void AssetLoader::loadSpriteSheet(const std::string& pictureName,
-                                  const std::string& spriteName,
+void AssetLoader::loadSpriteSheet(std::string_view pictureName,
+                                  std::string_view spriteName,
                                   int lastSpriteInd,
                                   int n,
                                   int w,
                                   int h) {
-  Sprite& sprite = store.getSprite(pictureName);
+  const std::string pictureStr(pictureName);
+  Sprite& sprite = store.getSprite(pictureStr);
   Sprite& spriteFlipped =
-      store.getSprite(pictureName + std::string(SPRITE_FLIPPED));
+      store.getSprite(pictureStr + std::string(SPRITE_FLIPPED));
 
   int num_x = sprite.w / w;
   int ctr = 0;
 
   for (int i = lastSpriteInd; i < n; i++) {
-    std::string sprName = spriteName + "_" + std::to_string(ctr);
+    std::string sprName = std::string(spriteName) + "_" + std::to_string(ctr);
 
-    spriteNameToPictureAlias[sprName] = pictureName;
+    spriteNameToPictureAlias[sprName] = pictureStr;
     loadSprite(sprName,
                sprite.renderable.tex,
                sprite.renderable.surf,
@@ -279,7 +291,7 @@ void AssetLoader::loadSpriteSheet(const std::string& pictureName,
                false);
 
     spriteNameToPictureAlias[sprName + std::string(SPRITE_FLIPPED)] =
-        pictureName;
+        pictureStr;
     loadSprite(sprName + std::string(SPRITE_FLIPPED),
                spriteFlipped.renderable.tex,
                spriteFlipped.renderable.surf,
@@ -293,15 +305,16 @@ void AssetLoader::loadSpriteSheet(const std::string& pictureName,
   }
 }
 
-void AssetLoader::loadAnimationDefinition(const std::string& name, bool loop) {}
+void AssetLoader::loadAnimationDefinition(std::string_view name, bool loop) {}
 
-void AssetLoader::loadSpriteAssetsFromFile(const std::string& path) {
+void AssetLoader::loadSpriteAssetsFromFile(std::string_view path) {
+  const std::string pathStr(path);
   LOG(DEBUG) << "[sdl2w] Loading sprite assets from file "
-             << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
-  std::ifstream file(std::string(ASSETS_PREFIX) + path);
+             << (std::string(ASSETS_PREFIX) + pathStr) << Logger::endl;
+  std::ifstream file(std::string(ASSETS_PREFIX) + pathStr);
   if (!file.is_open()) {
     LOG_LINE(ERROR) << "[sdl2w] Failed to open file: "
-                    << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+                    << (std::string(ASSETS_PREFIX) + pathStr) << Logger::endl;
     return;
   }
   std::string lastPicture;
@@ -366,14 +379,15 @@ void AssetLoader::loadSpriteAssetsFromFile(const std::string& path) {
   }
 }
 
-void AssetLoader::loadAnimationAssetsFromFile(const std::string& path) {
+void AssetLoader::loadAnimationAssetsFromFile(std::string_view path) {
+  const std::string pathStr(path);
   LOG(DEBUG) << "[sdl2w] Loading anim assets from file "
-             << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+             << (std::string(ASSETS_PREFIX) + pathStr) << Logger::endl;
   try {
     std::string animName = "";
     std::string line;
 
-    std::ifstream file(std::string(ASSETS_PREFIX) + path);
+    std::ifstream file(std::string(ASSETS_PREFIX) + pathStr);
 
     int lineOffset = 0;
 
@@ -419,13 +433,14 @@ void AssetLoader::loadAnimationAssetsFromFile(const std::string& path) {
   }
 }
 
-void AssetLoader::loadSoundAssetsFromFile(const std::string& path) {
+void AssetLoader::loadSoundAssetsFromFile(std::string_view path) {
+  const std::string pathStr(path);
   LOG(DEBUG) << "[sdl2w] Loading sound assets from file "
-             << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
-  std::ifstream file(std::string(ASSETS_PREFIX) + path);
+             << (std::string(ASSETS_PREFIX) + pathStr) << Logger::endl;
+  std::ifstream file(std::string(ASSETS_PREFIX) + pathStr);
   if (!file.is_open()) {
     LOG_LINE(ERROR) << "[sdl2w] Failed to open file: "
-                    << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+                    << (std::string(ASSETS_PREFIX) + pathStr) << Logger::endl;
     return;
   }
   std::string line;
@@ -451,13 +466,14 @@ void AssetLoader::loadSoundAssetsFromFile(const std::string& path) {
   }
 }
 
-void AssetLoader::loadAssetFile(const std::string& path) {
+void AssetLoader::loadAssetFile(std::string_view path) {
+  const std::string pathStr(path);
   LOG(DEBUG) << "[sdl2w] Loading asset file "
-             << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
-  std::ifstream file(std::string(ASSETS_PREFIX) + path);
+             << (std::string(ASSETS_PREFIX) + pathStr) << Logger::endl;
+  std::ifstream file(std::string(ASSETS_PREFIX) + pathStr);
   if (!file.is_open()) {
     LOG_LINE(ERROR) << "[sdl2w] Failed to open file: "
-                    << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
+                    << (std::string(ASSETS_PREFIX) + pathStr) << Logger::endl;
     return;
   }
 
@@ -608,7 +624,7 @@ void AssetLoader::loadAssetFile(const std::string& path) {
     }
     file.close();
   } catch (const std::exception& e) {
-    LOG_LINE(ERROR) << "[sdl2w] Exception while parsing asset file '" << path
+    LOG_LINE(ERROR) << "[sdl2w] Exception while parsing asset file '" << pathStr
                     << "': " << e.what() << Logger::endl;
     if (file.is_open()) {
       file.close();
@@ -617,7 +633,7 @@ void AssetLoader::loadAssetFile(const std::string& path) {
 }
 
 void AssetLoader::loadAssetsFromFile(AssetFileType type,
-                                     const std::string& path) {
+                                     std::string_view path) {
   switch (type) {
   case DEPRECATED_ASSET_TYPE_SPRITE:
     loadSpriteAssetsFromFile(path);
@@ -634,10 +650,11 @@ void AssetLoader::loadAssetsFromFile(AssetFileType type,
   }
 }
 
-std::string loadFileAsString(const std::string& path) {
+std::string loadFileAsString(std::string_view path) {
+  const std::string pathStr(path);
 #ifdef __EMSCRIPTEN__
   // Use a path relative to the mounted filesystem
-  std::string fullPath = std::string("/sdl2wdata/") + path;
+  std::string fullPath = std::string("/sdl2wdata/") + pathStr;
 
   // Check if file exists
   if (EM_ASM_INT(
@@ -663,21 +680,23 @@ std::string loadFileAsString(const std::string& path) {
     LOG_LINE(ERROR) << "[sdl2w] File not found: " << fullPath << Logger::endl;
     return "";
   }
-#endif
-  LOG(DEBUG) << "[sdl2w] Loading file " << (std::string(ASSETS_PREFIX) + path)
-             << Logger::endl;
-  std::ifstream file(std::string(ASSETS_PREFIX) + path);
+#else
+  LOG(DEBUG) << "[sdl2w] Loading file "
+             << (std::string(ASSETS_PREFIX) + pathStr) << Logger::endl;
+  std::ifstream file(std::string(ASSETS_PREFIX) + pathStr);
 
   if (!file) {
-    LOG_LINE(ERROR) << "[sdl2w] Error opening file: " << path << Logger::endl;
+    LOG_LINE(ERROR) << "[sdl2w] Error opening file: " << pathStr
+                    << Logger::endl;
     throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
   }
   std::stringstream buffer;
   buffer << file.rdbuf();
   return buffer.str();
+#endif
 }
 
-void saveFileAsString(const std::string& path, const std::string& content) {
+void saveFileAsString(std::string_view path, std::string_view content) {
 #ifdef __EMSCRIPTEN__
   std::stringstream transformPath;
   transformPath << "/"
@@ -686,9 +705,10 @@ void saveFileAsString(const std::string& path, const std::string& content) {
   LOG(DEBUG) << "[sdl2w] Saving file " << transformPath.str() << Logger::endl;
   std::ofstream file(transformPath.str());
 #else
-  LOG(DEBUG) << "[sdl2w] Saving file " << (std::string(ASSETS_PREFIX) + path)
+  const std::string pathStr(path);
+  LOG(DEBUG) << "[sdl2w] Saving file " << (std::string(ASSETS_PREFIX) + pathStr)
              << Logger::endl;
-  std::ofstream file(std::string(ASSETS_PREFIX) + path);
+  std::ofstream file(std::string(ASSETS_PREFIX) + pathStr);
 #endif
 
   if (!file) {
@@ -699,13 +719,13 @@ void saveFileAsString(const std::string& path, const std::string& content) {
     // HACK emscripten is set to not catch errors
     return;
 #else
-    LOG_LINE(ERROR) << "[sdl2w] Error opening file for save: " << path
+    LOG_LINE(ERROR) << "[sdl2w] Error opening file for save: " << pathStr
                     << Logger::endl;
     // HACK emscripten is set to not catch errors
     throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
 #endif
   }
-  file << content;
+  file << std::string_view(content);
   file.close();
 
 #ifdef __EMSCRIPTEN__

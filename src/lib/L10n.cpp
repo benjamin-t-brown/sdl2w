@@ -1,6 +1,7 @@
 #include "L10n.h"
 #include "Defines.h"
 #include "Logger.h"
+#include <string_view>
 #include <unordered_map>
 
 namespace sdl2w {
@@ -44,13 +45,15 @@ void L10n::init(const std::vector<std::string>& langs) {
   }
 }
 
-void L10n::loadLanguage(const std::string& lang, const std::string& langText) {
+void L10n::loadLanguage(std::string_view lang, std::string_view langText) {
   if (!isEnabled()) {
     return;
   }
 
-  locStrings[lang] = std::unordered_map<size_t, std::string>();
-  std::istringstream iss(langText);
+  const std::string langStr(lang);
+  locStrings[langStr] = std::unordered_map<size_t, std::string>();
+  const std::string langTextStr(langText);
+  std::istringstream iss(langTextStr);
   std::string line;
   while (std::getline(iss, line)) {
     // Find the first quoted part (original)
@@ -77,24 +80,25 @@ void L10n::loadLanguage(const std::string& lang, const std::string& langText) {
     std::string translated =
         line.substr(thirdQuote + 1, fourthQuote - thirdQuote - 1);
 
-    locStrings[lang][hash(original)] = translated;
+    locStrings[langStr][hash(original)] = translated;
   }
 }
 
 void L10n::setEnabled(bool enabled) { enabledFlag = enabled; }
 bool L10n::isEnabled() { return enabledFlag; }
 
-void L10n::setLanguage(const std::string& lang) {
+void L10n::setLanguage(std::string_view lang) {
   if (!isEnabled()) {
     return;
   }
 
-  auto it = locStrings.find(lang);
+  const std::string langStr(lang);
+  auto it = locStrings.find(langStr);
   if (it != locStrings.end()) {
-    language = lang;
-    LOG(DEBUG) << "[sdl2w] Language set to '" << lang << "'" << Logger::endl;
+    language = langStr;
+    LOG(DEBUG) << "[sdl2w] Language set to '" << langStr << "'" << Logger::endl;
   } else {
-    LOG_LINE(ERROR) << "Language '" << lang << "' not supported."
+    LOG_LINE(ERROR) << "Language '" << langStr << "' not supported."
                     << Logger::endl;
   }
 }

@@ -5,6 +5,7 @@
 #include <memory>
 #include <stack>
 #include <string>
+#include <string_view>
 
 union SDL_Event;
 
@@ -16,9 +17,9 @@ public:
   std::function<void(int, int, int)> onmouseup;
   std::function<void(int, int, int)> onmousemove;
   std::function<void(int, int, int)> onmousewheel;
-  std::function<void(const std::string&, int)> onkeydown;
-  std::function<void(const std::string&, int)> onkeyup;
-  std::function<void(const std::string&, int)> onkeypress;
+  std::function<void(std::string_view, int)> onkeydown;
+  std::function<void(std::string_view, int)> onkeyup;
+  std::function<void(std::string_view, int)> onkeypress;
 
   EventRoute();
 };
@@ -60,7 +61,7 @@ public:
 
   Events();
   ~Events();
-  bool isKeyPressed(const std::string& name) const;
+  bool isKeyPressed(std::string_view name) const;
   bool isCtrl() const;
 
   void pushRoute();
@@ -70,7 +71,7 @@ public:
   void setMouseEvent(MouseEventCb mEventCb,
                      std::function<void(int, int, int)> cb);
   void setKeyboardEvent(KeyboardEventCb kEventCb,
-                        std::function<void(const std::string&, int)> cb);
+                        std::function<void(std::string_view, int)> cb);
 
   void mousedown(int x, int y, int button);
   void mouseup(int x, int y, int button);

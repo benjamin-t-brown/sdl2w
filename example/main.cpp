@@ -1,10 +1,12 @@
-#include "../sdl2w/include/Animation.h"
-#include "../sdl2w/include/AssetLoader.h"
-#include "../sdl2w/include/Draw.h"
-#include "../sdl2w/include/L10n.h"
-#include "../sdl2w/include/Logger.h"
-#include "../sdl2w/include/Init.h"
-#include "../sdl2w/include/Window.h"
+#include <string_view>
+
+#include "lib/sdl2w/Animation.h"
+#include "lib/sdl2w/AssetLoader.h"
+#include "lib/sdl2w/Draw.h"
+#include "lib/sdl2w/L10n.h"
+#include "lib/sdl2w/Logger.h"
+#include "lib/sdl2w/Init.h"
+#include "lib/sdl2w/Window.h"
 
 void runProgram(int argc, char** argv) {
   const int w = 640;
@@ -58,7 +60,7 @@ void runProgram(int argc, char** argv) {
 
   std::string lastKeyPressed = "";
   window.getEvents().setKeyboardEvent(
-      sdl2w::ON_KEY_DOWN, [&](const std::string& key, int button) {
+      sdl2w::ON_KEY_DOWN, [&](std::string_view key, int button) {
         LOG(INFO) << "Keyboard down: " << key << " (" << button << ")"
                   << LOG_ENDL;
         if (key == "Left") {
@@ -83,7 +85,8 @@ void runProgram(int argc, char** argv) {
           window.playSound("test3");
         }
 
-        lastKeyPressed = key + " (" + std::to_string(button) + ")";
+        lastKeyPressed =
+            std::string(key) + " (" + std::to_string(button) + ")";
       });
 
   auto _loadLoop = [&]() {

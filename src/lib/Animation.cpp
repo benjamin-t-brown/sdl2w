@@ -14,7 +14,7 @@ std::unique_ptr<Sprite> Animation::staticDefaultSprite =
 Animation::Animation()
     : name(""), t(0), totalDuration(0), spriteIndex(0), loop(true) {}
 
-Animation::Animation(const std::string& nameA, const bool loopA)
+Animation::Animation(std::string_view nameA, const bool loopA)
     : name(nameA), t(0), totalDuration(0), spriteIndex(0), loop(loopA) {}
 
 Animation::Animation(const Animation& other)
@@ -119,13 +119,12 @@ void Animation::update(int dt) {
   }
 }
 
-AnimationDefinition::AnimationDefinition(const std::string& nameA,
+AnimationDefinition::AnimationDefinition(std::string_view nameA,
                                          const bool loopA)
     : name(nameA), loop(loopA) {}
 
-void AnimationDefinition::addSprite(const std::string& spriteName, int ms) {
-  std::string localSpriteName = spriteName;
-  sprites.push_back(AnimSpriteDefinition{spriteName, ms});
+void AnimationDefinition::addSprite(std::string_view spriteName, int ms) {
+  sprites.push_back(AnimSpriteDefinition{std::string(spriteName), ms});
 }
 
 } // namespace sdl2w

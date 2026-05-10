@@ -2,7 +2,7 @@
 
 #include "Draw.h"
 #include "Store.h"
-#include <string>
+#include <string_view>
 
 namespace sdl2w {
 
@@ -17,12 +17,12 @@ class AssetLoader {
   Draw& draw;
   Store& store;
 
-  void loadPicture(const std::string& name, const std::string& path);
-  void loadSprite(const std::string& name,
+  void loadPicture(std::string_view name, std::string_view path);
+  void loadSprite(std::string_view name,
                   SDL_Texture* tex,
                   SDL_Surface* surf,
                   bool flipped);
-  void loadSprite(const std::string& name,
+  void loadSprite(std::string_view name,
                   SDL_Texture* tex,
                   SDL_Surface* surf,
                   int spritesheetWidth,
@@ -31,18 +31,18 @@ class AssetLoader {
                   int w,
                   int h,
                   bool flipped);
-  void loadSpriteSheet(const std::string& pictureName,
-                       const std::string& spriteName,
+  void loadSpriteSheet(std::string_view pictureName,
+                       std::string_view spriteName,
                        int lastSpriteInd,
                        int n,
                        int w,
                        int h);
-  void loadAnimationDefinition(const std::string& name, bool loop);
+  void loadAnimationDefinition(std::string_view name, bool loop);
 
-  void loadSpriteAssetsFromFile(const std::string& path);
-  void loadAnimationAssetsFromFile(const std::string& path);
-  void loadSoundAssetsFromFile(const std::string& path);
-  void loadAssetFile(const std::string& path);
+  void loadSpriteAssetsFromFile(std::string_view path);
+  void loadAnimationAssetsFromFile(std::string_view path);
+  void loadSoundAssetsFromFile(std::string_view path);
+  void loadAssetFile(std::string_view path);
 
 public:
   std::unordered_map<std::string, std::string> picturePathToAlias;
@@ -52,15 +52,15 @@ public:
   AssetLoader(Draw& drawA, Store& storeA) : draw(drawA), store(storeA) {}
   static void initFs();
 
-  void loadAssetsFromFile(AssetFileType type, const std::string& path);
+  void loadAssetsFromFile(AssetFileType type, std::string_view path);
 };
 
-std::string slice(const std::string& str, int start, int end);
-std::string trim(const std::string& str);
-void split(const std::string& str,
-           const std::string& delimiter,
+std::string slice(std::string_view str, int start, int end);
+std::string trim(std::string_view str);
+void split(std::string_view str,
+           std::string_view delimiter,
            std::vector<std::string>& out);
-std::string loadFileAsString(const std::string& path);
-void saveFileAsString(const std::string& path, const std::string& content);
+std::string loadFileAsString(std::string_view path);
+void saveFileAsString(std::string_view path, std::string_view content);
 
 } // namespace sdl2w

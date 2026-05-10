@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include <string_view>
 namespace sdl2w {
 class Window;
 }
@@ -10,6 +10,6 @@ void setEmscriptenWindow(sdl2w::Window* window);
 bool isEmscriptenEnv();
 void notifyGameStarted();
 void notifyGameReady();
-void notifyGameCompleted(const std::string& result);
-void notifyGameGeneric(const std::string& payload);
+void notifyGameCompleted(std::string_view result);
+void notifyGameGeneric(std::string_view payload);
 } // namespace emshelpers

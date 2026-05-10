@@ -4,7 +4,11 @@
   "description": "SDL2W - SDL2 Wrapper",
   "main": "lib.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dist": "http-server dist",
+    "build": "npm run clean && mkdirp dist && npm run build-example && npm run mv-example && cp -rf public/* ./dist/",
+    "build-example": "(cd ../example && make clean && make -j8 js)",
+    "mv-example": "mv SDL2W_EXAMPLE.data SDL2W_EXAMPLE.wasm SDL2W_EXAMPLE.js ./dist/",
+    "clean": "rm -rf dist"
   },
   "repository": {
     "type": "git",
@@ -19,6 +23,8 @@
   "devDependencies": {
     "@eslint/js": "^9.26.0",
     "eslint": "^9.26.0",
-    "globals": "^16.1.0"
+    "globals": "^16.1.0",
+    "http-server": "^14.1.1",
+    "mkdirp": "^3.0.1"
   }
 }

@@ -495,7 +495,7 @@ void runProgram(int argc,
   auto& d = window.getDraw();
 
   window.getEvents().setKeyboardEvent(
-      sdl2w::ON_KEY_DOWN, [&](const std::string& keyName, int keyCode) {
+      sdl2w::ON_KEY_DOWN, [&](std::string_view keyName, int keyCode) {
         if (state.uiState == UI_SELECT_ASSET) {
           if (keyName == "Backspace") {
             if (!state.filter.empty()) {

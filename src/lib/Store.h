@@ -6,6 +6,7 @@
 #include "Animation.h"
 #include "Defines.h"
 #include <memory>
+#include <string_view>
 #include <unordered_map>
 
 namespace sdl2w {
@@ -33,33 +34,33 @@ public:
 
   Store() {}
 
-  void storeTexture(const std::string& name, SDL_Texture* tex);
-  void storeDynamicTexture(const std::string& name, SDL_Texture* tex);
-  void storeSurface(const std::string& name, SDL_Surface* surf);
-  void storeDynamicSurface(const std::string& name, SDL_Surface* surf);
-  void storeSprite(const std::string& name, Sprite* sprite);
-  AnimationDefinition& storeAnimationDefinition(const std::string& name,
+  void storeTexture(std::string_view name, SDL_Texture* tex);
+  void storeDynamicTexture(std::string_view name, SDL_Texture* tex);
+  void storeSurface(std::string_view name, SDL_Surface* surf);
+  void storeDynamicSurface(std::string_view name, SDL_Surface* surf);
+  void storeSprite(std::string_view name, Sprite* sprite);
+  AnimationDefinition& storeAnimationDefinition(std::string_view name,
                                                 const bool loop);
-  void loadAndStoreFont(const std::string& name, const std::string& path);
-  void createFontAlias(const std::string& aliasName,
-                       const std::string& loadedFontName);
-  void storeSound(const std::string& name, const std::string& path);
-  void storeMusic(const std::string& name, const std::string& path);
+  void loadAndStoreFont(std::string_view name, std::string_view path);
+  void createFontAlias(std::string_view aliasName,
+                       std::string_view loadedFontName);
+  void storeSound(std::string_view name, std::string_view path);
+  void storeMusic(std::string_view name, std::string_view path);
 
-  SDL_Texture* getTexture(const std::string& name);
-  SDL_Texture* getDynamicTexture(const std::string& name);
-  SDL_Texture* getTextTexture(const std::string& name);
-  SDL_Surface* getSurface(const std::string& name);
-  SDL_Surface* getDynamicSurface(const std::string& name);
-  Sprite& getSprite(const std::string& name);
-  AnimationDefinition& getAnimationDefinition(const std::string& name);
+  SDL_Texture* getTexture(std::string_view name);
+  SDL_Texture* getDynamicTexture(std::string_view name);
+  SDL_Texture* getTextTexture(std::string_view name);
+  SDL_Surface* getSurface(std::string_view name);
+  SDL_Surface* getDynamicSurface(std::string_view name);
+  Sprite& getSprite(std::string_view name);
+  AnimationDefinition& getAnimationDefinition(std::string_view name);
   TTF_Font*
-  getFont(const std::string& name, const int sz, const bool isOutline = false);
-  Mix_Chunk* getSound(const std::string& name);
-  Mix_Music* getMusic(const std::string& name);
-  Animation createAnimation(const std::string& name, bool flipped = false);
+  getFont(std::string_view name, const int sz, const bool isOutline = false);
+  Mix_Chunk* getSound(std::string_view name);
+  Mix_Music* getMusic(std::string_view name);
+  Animation createAnimation(std::string_view name, bool flipped = false);
 
-  bool hasDynamicTextureOrSurface(const std::string& name);
+  bool hasDynamicTextureOrSurface(std::string_view name);
 
   void logAllSprites();
   void logAllAnimationDefinitions();

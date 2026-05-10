@@ -3,6 +3,8 @@
 #include "Logger.h"
 #include "Store.h"
 #include <algorithm>
+#include <string>
+#include <string_view>
 #include <cmath>
 #include <sstream>
 
@@ -144,15 +146,16 @@ int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius) {
   return status;
 }
 
-std::pair<int, int> Draw::measureText(const std::string& text,
+std::pair<int, int> Draw::measureText(std::string_view text,
                                       const RenderTextParams& params) {
   TTF_Font* font = store.getFont(params.fontName, params.fontSize);
+  const std::string textStr(text);
   int ww = 0, hh = 0;
-  TTF_SizeUTF8(font, text.c_str(), &ww, &hh);
+  TTF_SizeUTF8(font, textStr.c_str(), &ww, &hh);
   return {ww, hh};
 }
 
-Renderable Draw::getTextRenderable(const std::string& text,
+Renderable Draw::getTextRenderable(std::string_view text,
                                    const RenderTextParams& params) {
   std::stringstream keyStream;
   keyStream << text << params.fontSize << params.fontName << params.color.r
@@ -164,7 +167,8 @@ Renderable Draw::getTextRenderable(const std::string& text,
   }
 
   TTF_Font* font = store.getFont(params.fontName, params.fontSize);
-  auto [ww, hh] = measureText(text, params);
+  const std::string textStr(text);
+  auto [ww, hh] = measureText(textStr, params);
   SDL_Surface* blitSurface = SDL_CreateRGBSurface(0,
                                                   ww,
                                                   hh,
@@ -185,7 +189,8 @@ Renderable Draw::getTextRenderable(const std::string& text,
   SDL_FillRect(
       blitSurface, nullptr, SDL_MapRGBA(blitSurface->format, 0, 0, 0, 0));
 
-  SDL_Surface* msg = TTF_RenderUTF8_Blended(font, text.c_str(), params.color);
+  SDL_Surface* msg =
+      TTF_RenderUTF8_Blended(font, textStr.c_str(), params.color);
   SDL_SetSurfaceBlendMode(msg, SDL_BLENDMODE_BLEND);
   SDL_BlitSurface(msg, nullptr, blitSurface, nullptr);
   SDL_FreeSurface(msg);
@@ -202,7 +207,7 @@ Renderable Draw::getTextRenderable(const std::string& text,
 }
 
 SDL_Surface* Draw::getRotatedSurface(SDL_Surface* originalSurface,
-                                     const std::string& name,
+                                     std::string_view name,
                                      double angleDeg,
                                      const RenderableParamsEx& params) {
   while (angleDeg < 0) {
@@ -545,7 +550,7 @@ void Draw::drawAnimation(const Animation& anim,
   }
 }
 
-void Draw::drawText(const std::string& text, const RenderTextParams& params) {
+void Draw::drawText(std::string_view text, const RenderTextParams& params) {
   Renderable r = getTextRenderable(text, params);
 
   if (mode == DrawMode::CPU) {

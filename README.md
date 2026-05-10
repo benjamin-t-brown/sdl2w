@@ -52,23 +52,74 @@ SDL2W provides a makefile that can build for the following platforms:
   - Linux x86_64
 - WASM
 
-Additionally there are some helper macros for includes in the toolchains for the following platforms:
-- miyooa30
-- miyoomini
+To build GCC:
+
+```
+cd src
+make clean
+make native
+```
+
+To build for WASM
+
+```
+cd src
+make clean
+make wasm
+```
+
+The build command outputs a folder "sdl2w" in the repo which contains
+```
+include - include files for lib (to be ingested by your app)
+lib - linkable .a file
+```
 
 # Tools
 
-Anims
+To build tools
+
+```
+cd src
+make tools
+```
+
+These tools will then be in:
+
+```
+src/build/tools
+```
+
+## Anims
 
 Place the executable in same dir as your executable and it will load the same assets.  Use this to debug/edit sprites and animations.
 
-L10nScanner
+## L10nScanner
 
 Scans your code base for TRANSLATION macros and creates translation lines for them if they don't exist.  Preserves existing translations if they are there.
 
 ```
 ./L10nScanner.exe --input-dir <dir> --output-dir <dir2> en la fr
 ```
+
+# Example
+
+To build the example with GCC
+
+```
+cd example
+make
+```
+
+To build the example in WASM for web, use nodejs in the web folder
+
+```
+cd web
+npm i
+npm run build
+npm run dist
+```
+
+This starts an http server that points at the build.
 
 # Linking SDL2W in your game
 

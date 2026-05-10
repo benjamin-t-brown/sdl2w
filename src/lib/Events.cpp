@@ -21,9 +21,9 @@ EventRoute::EventRoute() {
   onmouseup = [](int, int, int) {};
   onmousemove = [](int, int, int) {};
   onmousewheel = [](int, int, int) {};
-  onkeydown = [](const std::string&, int) {};
-  onkeyup = [](const std::string&, int) {};
-  onkeypress = [](const std::string&, int) {};
+  onkeydown = [](std::string_view, int) {};
+  onkeyup = [](std::string_view, int) {};
+  onkeypress = [](std::string_view, int) {};
 }
 
 Events::Events() {
@@ -33,12 +33,13 @@ Events::Events() {
 
 Events::~Events() {}
 
-bool Events::isKeyPressed(const std::string& name) const {
-  if (keys.find(name) == keys.end()) {
+bool Events::isKeyPressed(std::string_view name) const {
+  const std::string nameStr(name);
+  const auto it = keys.find(nameStr);
+  if (it == keys.end()) {
     return false;
-  } else {
-    return keys.at(name);
   }
+  return it->second;
 }
 
 bool Events::isCtrl() const {
@@ -75,7 +76,7 @@ void Events::setMouseEvent(MouseEventCb mEventCb,
   }
 }
 void Events::setKeyboardEvent(KeyboardEventCb kEventCb,
-                              std::function<void(const std::string&, int)> cb) {
+                              std::function<void(std::string_view, int)> cb) {
   std::unique_ptr<EventRoute>& route = routes.top();
   if (kEventCb == ON_KEY_DOWN) {
     route->onkeydown = cb;
