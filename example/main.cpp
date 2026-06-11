@@ -50,11 +50,8 @@ void runProgram(int argc, char** argv) {
   double kenX = 75;
   double kenPunchTime = 0;
   double kenPunchDuration = 600;
-  std::vector<sdl2w::Animation> kenAnims = {
-      store.createAnimation("ken_walk"),
-      store.createAnimation("ken_walk", true),
-      store.createAnimation("ken_punch"),
-      store.createAnimation("ken_punch", true)};
+  sdl2w::Animation kenWalkAnim = store.createAnimation("ken_walk");
+  sdl2w::Animation kenPunchAnim = store.createAnimation("ken_punch");
 
   double fractalRotation = 0;
 
@@ -69,8 +66,7 @@ void runProgram(int argc, char** argv) {
           kenDirection = 1;
         } else if (key == "X") {
           kenAnimState = 1;
-          kenAnims[2].start();
-          kenAnims[3].start();
+          kenPunchAnim.start();
         } else if (key == "Space") {
           if (window.isMusicPlaying()) {
             window.stopMusic();
@@ -111,9 +107,8 @@ void runProgram(int argc, char** argv) {
     const int dt = window.getDeltaTime();
 
     // update
-    for (auto& anim : kenAnims) {
-      anim.update(dt);
-    }
+    kenWalkAnim.update(dt);
+    kenPunchAnim.update(dt);
     if (kenAnimState == 0) {
       kenX += (kenDirection == 0 ? -1 : 1) * kenSpeed * static_cast<double>(dt);
       if (kenX < 0) {
@@ -140,11 +135,11 @@ void runProgram(int argc, char** argv) {
                                                .y = h - 100,
                                                .centered = true};
     if (kenAnimState == 0) {
-      // walk left/right
-      d.drawAnimation(kenAnims[kenDirection == 0 ? 1 : 0], kenRenderParams);
+      kenRenderParams.flipped = kenDirection == 0;
+      d.drawAnimation(kenWalkAnim, kenRenderParams);
     } else if (kenAnimState == 1) {
-      // punch
-      d.drawAnimation(kenAnims[kenDirection == 0 ? 3 : 2], kenRenderParams);
+      kenRenderParams.flipped = kenDirection == 0;
+      d.drawAnimation(kenPunchAnim, kenRenderParams);
     }
 
     d.drawRect(0, 0, 100, 100, {54, 52, 52, 255});

@@ -78,45 +78,27 @@ enum DrawMode {
 };
 
 class Draw {
-  // decided when instance is created
-  const DrawMode mode;
   Store& store;
-  // screen size, independent of window size
   int renderWidth = 0;
   int renderHeight = 0;
 
-  // does not own
   SDL_Renderer* sdlRenderer = nullptr;
-
-  // does own
   SDL_Texture* intermediate = nullptr;
-  SDL_Surface* screen = nullptr;
-  std::unordered_map<std::string, std::unique_ptr<SDL_Texture, SDL_Deleter>>
-      cachedTextures;
-  std::unordered_map<std::string, std::unique_ptr<SDL_Surface, SDL_Deleter>>
-      cachedSurfaces;
 
   SDL_Color backgroundColor = {0, 0, 0, 255};
   double renderRotationAngle = 0.0;
   int globalAlpha = 255;
   std::unordered_map<std::string, bool> invalidSpriteWarnings;
 
-  Renderable getTextRenderable(std::string_view text,
-                               const RenderTextParams& params);
-  SDL_Surface* getRotatedSurface(SDL_Surface* originalSurface,
-                                 std::string_view name,
-                                 double angleDeg,
-                                 const RenderableParamsEx& params);
-
+  SDL_Texture* getTextTexture(std::string_view text,
+                              const RenderTextParams& params);
   void drawSpriteInner(const Sprite& sprite, const RenderableParamsEx& params);
 
 public:
   void drawTexture(SDL_Texture* tex, const RenderableParams& params);
   void drawTexture(SDL_Texture* tex, const RenderableParamsEx& params);
-  void drawSurface(SDL_Surface* surf, const RenderableParams& params);
-  void drawSurface(SDL_Surface* surf, const RenderableParamsEx& params);
 
-  Draw(DrawMode mode, Store& store);
+  Draw(Store& store);
   ~Draw();
   void setSdlRenderer(SDL_Renderer* r,
                       int renderWidth,
@@ -124,7 +106,6 @@ public:
                       Uint32 format);
   SDL_Renderer* getSdlRenderer() { return sdlRenderer; }
   SDL_Texture* getIntermediate() { return intermediate; }
-  SDL_Surface* getScreen() { return screen; }
   std::pair<int, int> getRenderSize() const {
     return {renderWidth, renderHeight};
   }
@@ -153,8 +134,6 @@ public:
   void clearScreen();
 
   void renderIntermediate();
-
-  // void drawText(const RenderTextParams& params);
 };
 
 } // namespace sdl2w

@@ -23,7 +23,6 @@ typedef struct Mix_Music Mix_Music;
 typedef struct _SDL_Joystick SDL_Joystick;
 
 namespace sdl2w {
-const std::string_view SPRITE_FLIPPED{"_f"};
 const std::string_view FAIL_ERROR_TEXT{"sdl2w fail"};
 const std::string_view INDEXDB_PREFIX{"sdl2wdata"};
 const std::string_view ASSETS_PREFIX{""};

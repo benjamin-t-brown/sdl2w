@@ -13,7 +13,7 @@ namespace sdl2w {
 constexpr const char* FONT_DEFAULT = "default";
 
 struct Window2Params {
-  DrawMode mode = DrawMode::CPU;
+  DrawMode mode = DrawMode::GPU;
   std::string title;
   int w;
   int h;

@@ -18,13 +18,9 @@ class AssetLoader {
   Store& store;
 
   void loadPicture(std::string_view name, std::string_view path);
+  void loadSprite(std::string_view name, SDL_Texture* tex, bool flipped);
   void loadSprite(std::string_view name,
                   SDL_Texture* tex,
-                  SDL_Surface* surf,
-                  bool flipped);
-  void loadSprite(std::string_view name,
-                  SDL_Texture* tex,
-                  SDL_Surface* surf,
                   int spritesheetWidth,
                   int x,
                   int y,

@@ -3,15 +3,13 @@
 #include "Logger.h"
 #include "Store.h"
 #include <algorithm>
+#include <sstream>
 #include <string>
 #include <string_view>
-#include <cmath>
-#include <sstream>
 
 #if __has_include(<SDL.h>)
 #include <SDL.h>
 #include <SDL2_gfxPrimitives.h>
-#include <SDL2_rotozoom.h>
 #include <SDL_image.h>
 #include <SDL_render.h>
 #include <SDL_stdinc.h>
@@ -20,7 +18,6 @@
 #else
 #include <SDL2/SDL.h>
 #include <SDL2/SDL2_gfxPrimitives.h>
-#include <SDL2/SDL2_rotozoom.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_stdinc.h>
@@ -29,40 +26,6 @@
 #endif
 
 namespace sdl2w {
-
-namespace {
-
-void drawLineCpu(SDL_Surface* surf,
-                 int x0,
-                 int y0,
-                 int x1,
-                 int y1,
-                 int lineWidth,
-                 const SDL_Color& color) {
-  const Uint32 px =
-      SDL_MapRGBA(surf->format, color.r, color.g, color.b, color.a);
-  const double dx = static_cast<double>(x1 - x0);
-  const double dy = static_cast<double>(y1 - y0);
-  const double len = std::hypot(dx, dy);
-  const int halfW = lineWidth / 2;
-
-  if (len < 1e-6) {
-    SDL_Rect rect = {x0 - halfW, y0 - halfW, lineWidth, lineWidth};
-    SDL_FillRect(surf, &rect, px);
-    return;
-  }
-
-  const int steps = std::max({1, static_cast<int>(std::ceil(len)), lineWidth});
-  for (int i = 0; i <= steps; ++i) {
-    const double t = static_cast<double>(i) / static_cast<double>(steps);
-    const int x = static_cast<int>(std::lround(x0 + dx * t));
-    const int y = static_cast<int>(std::lround(y0 + dy * t));
-    SDL_Rect rect = {x - halfW, y - halfW, lineWidth, lineWidth};
-    SDL_FillRect(surf, &rect, px);
-  }
-}
-
-} // namespace
 
 // https://gist.github.com/Gumichan01/332c26f6197a432db91cc4327fcabb1c
 int SDL_RenderDrawCircle(SDL_Renderer* renderer, int x, int y, int radius) {
@@ -155,15 +118,14 @@ std::pair<int, int> Draw::measureText(std::string_view text,
   return {ww, hh};
 }
 
-Renderable Draw::getTextRenderable(std::string_view text,
+SDL_Texture* Draw::getTextTexture(std::string_view text,
                                    const RenderTextParams& params) {
   std::stringstream keyStream;
   keyStream << text << params.fontSize << params.fontName << params.color.r
             << params.color.g << params.color.b;
   const std::string key = keyStream.str();
-  if (store.hasDynamicTextureOrSurface(key)) {
-    return Renderable{store.getDynamicTexture(key),
-                      store.getDynamicSurface(key)};
+  if (store.hasDynamicTexture(key)) {
+    return store.getDynamicTexture(key);
   }
 
   TTF_Font* font = store.getFont(params.fontName, params.fontSize);
@@ -196,76 +158,21 @@ Renderable Draw::getTextRenderable(std::string_view text,
   SDL_FreeSurface(msg);
 
   SDL_Texture* texPtr = SDL_CreateTexture(
-      sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, ww, hh);
+      sdlRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, ww, hh);
 
   SDL_SetTextureBlendMode(texPtr, SDL_BLENDMODE_BLEND);
   SDL_UpdateTexture(texPtr, nullptr, blitSurface->pixels, blitSurface->pitch);
+  SDL_FreeSurface(blitSurface);
 
   store.storeDynamicTexture(key, texPtr);
-  store.storeDynamicSurface(key, blitSurface);
-  return {texPtr, blitSurface};
+  return texPtr;
 }
 
-SDL_Surface* Draw::getRotatedSurface(SDL_Surface* originalSurface,
-                                     std::string_view name,
-                                     double angleDeg,
-                                     const RenderableParamsEx& params) {
-  while (angleDeg < 0) {
-    angleDeg += 360;
-  }
-  while (angleDeg >= 360) {
-    angleDeg -= 360;
-  }
-
-  std::stringstream keyStream;
-  keyStream << name << originalSurface->w << "," << originalSurface->h << ","
-            << angleDeg << "," << params.clipX << "," << params.clipY << ","
-            << params.clipW << "," << params.clipH << "," << params.scale.first
-            << "," << params.scale.second << "," << params.flipped;
-  std::string key = keyStream.str();
-
-  if (store.hasDynamicTextureOrSurface(key)) {
-    return store.getDynamicSurface(key);
-  }
-
-  SDL_Rect clip = {params.clipX, params.clipY, params.clipW, params.clipH};
-
-  // Create a new surface for just the clip.
-  SDL_Surface* spriteSurface =
-      SDL_CreateRGBSurface(0,
-                           clip.w * params.scale.first,
-                           clip.h * params.scale.second,
-                           originalSurface->format->BitsPerPixel,
-                           originalSurface->format->Rmask,
-                           originalSurface->format->Gmask,
-                           originalSurface->format->Bmask,
-                           originalSurface->format->Amask);
-  SDL_Rect destRect = {
-      .x = 0,
-      .y = 0,
-      .w = static_cast<int>(clip.w * params.scale.first),
-      .h = static_cast<int>(clip.h * params.scale.second),
-  };
-  SDL_BlitScaled(originalSurface, &clip, spriteSurface, &destRect);
-  SDL_Surface* rotatedSurface = rotozoomSurface(
-      spriteSurface, static_cast<double>(angleDeg), 1., SMOOTHING_OFF);
-
-  SDL_FreeSurface(spriteSurface);
-  store.storeDynamicSurface(key, rotatedSurface);
-
-  return rotatedSurface;
-}
-
-Draw::Draw(DrawMode mode, Store& storeA) : mode(mode), store(storeA) {
-  // pointers to intermediate and screen are created in setSdlRenderer
-}
+Draw::Draw(Store& storeA) : store(storeA) {}
 
 Draw::~Draw() {
   if (intermediate != nullptr) {
     SDL_DestroyTexture(intermediate);
-  }
-  if (screen != nullptr) {
-    SDL_FreeSurface(screen);
   }
 }
 
@@ -324,58 +231,6 @@ void Draw::drawTexture(SDL_Texture* tex, const RenderableParamsEx& params) {
   SDL_RenderCopyEx(sdlRenderer, tex, &clip, &pos, angleDeg, nullptr, flip);
 }
 
-void Draw::drawSurface(SDL_Surface* surf, const RenderableParams& params) {
-  drawSurface(surf,
-              {.scale = params.scale,
-               .angleDeg = 0,
-               .x = params.x,
-               .y = params.y,
-               .w = surf->w,
-               .h = surf->h,
-               .clipX = 0,
-               .clipY = 0,
-               .clipW = surf->w,
-               .clipH = surf->h,
-               .centered = params.centered,
-               .flipped = params.flipped});
-}
-
-void Draw::drawSurface(SDL_Surface* surf, const RenderableParamsEx& params) {
-  auto [scale,
-        angleDeg,
-        x,
-        y,
-        w,
-        h,
-        clipX,
-        clipY,
-        clipW,
-        clipH,
-        centered,
-        flipped] = params;
-
-  const double scaledW = static_cast<double>(w) * scale.first;
-  const double scaledH = static_cast<double>(h) * scale.second;
-
-  const int halfScaledW = static_cast<int>(scaledW) / 2;
-  const int halfScaledH = static_cast<int>(scaledH) / 2;
-
-  SDL_Rect pos = {
-      .x = x + (centered ? -halfScaledW : 0),
-      .y = y + (centered ? -halfScaledH : 0),
-      .w = static_cast<int>(scaledW),
-      .h = static_cast<int>(scaledH),
-  };
-  SDL_Rect clip = {clipX, clipY, clipW, clipH};
-  SDL_SetSurfaceAlphaMod(surf, globalAlpha);
-
-  if (clip.w == 0 || clip.h == 0) {
-    SDL_BlitScaled(surf, nullptr, screen, &pos);
-  } else {
-    SDL_BlitScaled(surf, &clip, screen, &pos);
-  }
-}
-
 void Draw::setSdlRenderer(SDL_Renderer* r,
                           int renderWidthA,
                           int renderHeightA,
@@ -386,23 +241,12 @@ void Draw::setSdlRenderer(SDL_Renderer* r,
   renderWidth = renderWidthA;
   renderHeight = renderHeightA;
 
-  screen = SDL_CreateRGBSurface(0, renderWidth, renderHeight, 16, 0, 0, 0, 0);
-  if (mode == CPU) {
-    // CPU mode streams blitted SDL_Surfaces to an SDL_Texture.
-    intermediate = SDL_CreateTexture(sdlRenderer,
-                                     SDL_PIXELFORMAT_RGB565,
-                                     SDL_TEXTUREACCESS_STREAMING,
-                                     renderWidth,
-                                     renderHeight);
-  } else if (mode == GPU) {
-    // GPU mode renders directly to an SDL_Texture as a target texture.
-    intermediate = SDL_CreateTexture(sdlRenderer,
+  intermediate = SDL_CreateTexture(sdlRenderer,
                                      format,
                                      SDL_TEXTUREACCESS_TARGET,
                                      renderWidth,
                                      renderHeight);
-    SDL_SetTextureBlendMode(intermediate, SDL_BLENDMODE_BLEND);
-  }
+  SDL_SetTextureBlendMode(intermediate, SDL_BLENDMODE_BLEND);
 
   SDL_SetRenderTarget(sdlRenderer, intermediate);
 }
@@ -436,7 +280,6 @@ void Draw::drawSprite(const Sprite& sprite, const RenderableParams& params) {
                    .flipped = params.flipped});
 }
 
-// use this to extract sprite into RenderableParamsEx
 void Draw::drawSprite(const Sprite& sprite, const RenderableParamsEx& params) {
   drawSpriteInner(sprite,
                   {.scale = params.scale,
@@ -455,57 +298,20 @@ void Draw::drawSprite(const Sprite& sprite, const RenderableParamsEx& params) {
 
 void Draw::drawSpriteInner(const Sprite& sprite,
                            const RenderableParamsEx& params) {
-  auto [tex, surf] = sprite.renderable;
+  SDL_Texture* tex = sprite.renderable.tex;
 
-  if (tex == nullptr || surf == nullptr) {
+  if (tex == nullptr) {
     if (invalidSpriteWarnings.find(sprite.name) ==
         invalidSpriteWarnings.end()) {
       LOG_LINE(ERROR) << "[sdl2w] Cannot drawSprite - Sprite missing required "
-                         "texture and/or surface: "
-                      << sprite.name << " tex=" << tex << " surf=" << surf
-                      << Logger::endl;
+                         "texture: "
+                      << sprite.name << Logger::endl;
       invalidSpriteWarnings[sprite.name] = true;
     }
     return;
   }
 
-  if (mode == DrawMode::CPU) {
-    RenderableParamsEx cpuParams = params;
-    if (params.flipped) {
-      // instead of flipping the texture at draw time, the cpu method uses an
-      // sdl surface, which is stored a flipped version of the whole
-      // spritesheet. This means the draw function must also flip the
-      // horizontal location of the clipping rect
-      cpuParams.clipX = sprite.spritesheetWidth - sprite.x - sprite.w;
-    }
-    if (params.angleDeg != 0) {
-      // the sdl2 gfx library's rotozoomSurface function is used to rotate the
-      // surface, which creates a new surface with sprite extracted from the
-      // spritesheet, rotated and zoomed to params scale.  After this operation,
-      // the params for drawSurface must be updated to account for the new
-      // surface, since it no longer should have a clipping rect and it has a
-      // different size than the original clip (due to rotation)
-      SDL_Surface* rotatedSurface =
-          getRotatedSurface(surf, sprite.name, params.angleDeg, cpuParams);
-      cpuParams.clipX = 0;
-      cpuParams.clipY = 0;
-      cpuParams.clipW = 0;
-      cpuParams.clipH = 0;
-      cpuParams.scale = {1., 1.};
-      cpuParams.w = rotatedSurface->w;
-      cpuParams.h = rotatedSurface->h;
-      if (!params.centered) {
-        cpuParams.x += params.w * params.scale.first / 2;
-        cpuParams.y += params.h * params.scale.second / 2;
-      }
-      cpuParams.centered = true;
-      drawSurface(rotatedSurface, cpuParams);
-    } else {
-      drawSurface(surf, cpuParams);
-    }
-  } else {
-    drawTexture(tex, params);
-  }
+  drawTexture(tex, params);
 }
 
 void Draw::drawAnimation(const Animation& anim,
@@ -523,7 +329,7 @@ void Draw::drawAnimation(const Animation& anim,
                  .clipW = sprite.w,
                  .clipH = sprite.h,
                  .centered = params.centered,
-                 .flipped = params.flipped});
+                 .flipped = params.flipped || anim.flipped});
 }
 
 void Draw::drawAnimation(const Animation& anim,
@@ -542,7 +348,7 @@ void Draw::drawAnimation(const Animation& anim,
                      .clipW = sprite.w,
                      .clipH = sprite.h,
                      .centered = params.centered,
-                     .flipped = params.flipped});
+                     .flipped = params.flipped || anim.flipped});
   } else {
     LOG_LINE(ERROR) << "Anim has not been initialized: '" << anim.toString()
                     << "'" << Logger::endl;
@@ -551,58 +357,33 @@ void Draw::drawAnimation(const Animation& anim,
 }
 
 void Draw::drawText(std::string_view text, const RenderTextParams& params) {
-  Renderable r = getTextRenderable(text, params);
-
-  if (mode == DrawMode::CPU) {
-    drawSurface(r.surf,
-                RenderableParamsEx{.scale = params.scale,
-                                   .angleDeg = 0,
-                                   .x = params.x,
-                                   .y = params.y,
-                                   .w = r.surf->w,
-                                   .h = r.surf->h,
-                                   .clipX = 0,
-                                   .clipY = 0,
-                                   .clipW = r.surf->w,
-                                   .clipH = r.surf->h,
-                                   .centered = params.centered,
-                                   .flipped = false});
-  } else {
-    int width, height;
-    SDL_QueryTexture(r.tex, nullptr, nullptr, &width, &height);
-    drawTexture(r.tex,
-                RenderableParamsEx{.scale = params.scale,
-                                   .angleDeg = params.angleDeg,
-                                   .x = params.x,
-                                   .y = params.y,
-                                   .w = width,
-                                   .h = height,
-                                   .clipX = 0,
-                                   .clipY = 0,
-                                   .clipW = width,
-                                   .clipH = height,
-                                   .centered = params.centered,
-                                   .flipped = false});
-  }
+  SDL_Texture* tex = getTextTexture(text, params);
+  int width, height;
+  SDL_QueryTexture(tex, nullptr, nullptr, &width, &height);
+  drawTexture(tex,
+              RenderableParamsEx{.scale = params.scale,
+                                 .angleDeg = params.angleDeg,
+                                 .x = params.x,
+                                 .y = params.y,
+                                 .w = width,
+                                 .h = height,
+                                 .clipX = 0,
+                                 .clipY = 0,
+                                 .clipW = width,
+                                 .clipH = height,
+                                 .centered = params.centered,
+                                 .flipped = false});
 }
 
 void Draw::drawRect(int x, int y, int w, int h, const SDL_Color& color) {
-  if (mode == DrawMode::CPU) {
-    SDL_Rect rect = {x, y, w, h};
-    SDL_FillRect(
-        screen,
-        &rect,
-        SDL_MapRGBA(screen->format, color.r, color.g, color.b, color.a));
-  } else if (mode == DrawMode::GPU) {
-    SDL_SetRenderDrawColor(sdlRenderer, color.r, color.g, color.b, color.a);
-    SDL_Rect rect = {x, y, w, h};
-    SDL_RenderFillRect(sdlRenderer, &rect);
-    SDL_SetRenderDrawColor(sdlRenderer,
-                           backgroundColor.r,
-                           backgroundColor.g,
-                           backgroundColor.b,
-                           backgroundColor.a);
-  }
+  SDL_SetRenderDrawColor(sdlRenderer, color.r, color.g, color.b, color.a);
+  SDL_Rect rect = {x, y, w, h};
+  SDL_RenderFillRect(sdlRenderer, &rect);
+  SDL_SetRenderDrawColor(sdlRenderer,
+                         backgroundColor.r,
+                         backgroundColor.g,
+                         backgroundColor.b,
+                         backgroundColor.a);
 }
 
 void Draw::drawLine(const std::pair<int, int>& from,
@@ -611,12 +392,33 @@ void Draw::drawLine(const std::pair<int, int>& from,
                     const SDL_Color& color) {
   const int w = std::max(1, lineWidth);
 
-  if (mode == DrawMode::CPU) {
-    drawLineCpu(screen, from.first, from.second, to.first, to.second, w, color);
+  if (from.first == to.first && from.second == to.second) {
+    const Sint16 x = static_cast<Sint16>(from.first);
+    const Sint16 y = static_cast<Sint16>(from.second);
+    if (w <= 1) {
+      pixelRGBA(sdlRenderer, x, y, color.r, color.g, color.b, color.a);
+    } else {
+      const int halfW = w / 2;
+      boxRGBA(sdlRenderer,
+              x - halfW,
+              y - halfW,
+              x - halfW + w - 1,
+              y - halfW + w - 1,
+              color.r,
+              color.g,
+              color.b,
+              color.a);
+    }
+    SDL_SetRenderDrawColor(sdlRenderer,
+                           backgroundColor.r,
+                           backgroundColor.g,
+                           backgroundColor.b,
+                           backgroundColor.a);
     return;
   }
 
   const Uint8 gfxW = static_cast<Uint8>(std::min(w, 255));
+
   thickLineRGBA(sdlRenderer,
                 static_cast<Sint16>(from.first),
                 static_cast<Sint16>(from.second),
@@ -636,61 +438,30 @@ void Draw::drawLine(const std::pair<int, int>& from,
 
 void Draw::drawCircle(
     int x, int y, int radius, const SDL_Color& color, bool filled) {
-  if (mode == DrawMode::CPU) {
-    // TODO
-    // if (filled) {
-    //   SDL_FillCircle(
-    //       screen,
-    //       x,
-    //       y,
-    //       radius,
-    //       SDL_MapRGBA(screen->format, color.r, color.g, color.b, color.a));
-    // } else {
-    //   SDL_DrawCircle(
-    //       screen,
-    //       x,
-    //       y,
-    //       radius,
-    //       SDL_MapRGBA(screen->format, color.r, color.g, color.b, color.a));
-    // }
-  } else if (mode == DrawMode::GPU) {
-    SDL_SetRenderDrawColor(sdlRenderer, color.r, color.g, color.b, color.a);
-    if (filled) {
-      SDL_RenderFillCircle(sdlRenderer, x, y, radius);
-    } else {
-      SDL_RenderDrawCircle(sdlRenderer, x, y, radius);
-    }
-    SDL_SetRenderDrawColor(sdlRenderer,
-                           backgroundColor.r,
-                           backgroundColor.g,
-                           backgroundColor.b,
-                           backgroundColor.a);
+  SDL_SetRenderDrawColor(sdlRenderer, color.r, color.g, color.b, color.a);
+  if (filled) {
+    SDL_RenderFillCircle(sdlRenderer, x, y, radius);
+  } else {
+    SDL_RenderDrawCircle(sdlRenderer, x, y, radius);
   }
+  SDL_SetRenderDrawColor(sdlRenderer,
+                         backgroundColor.r,
+                         backgroundColor.g,
+                         backgroundColor.b,
+                         backgroundColor.a);
 }
 
 void Draw::clearScreen() {
-  if (mode == DrawMode::CPU) {
-    SDL_FillRect(screen,
-                 NULL,
-                 SDL_MapRGB(screen->format,
-                            backgroundColor.r,
-                            backgroundColor.g,
-                            backgroundColor.b));
-  } else if (mode == DrawMode::GPU) {
-    SDL_SetRenderTarget(sdlRenderer, intermediate);
-    SDL_SetRenderDrawColor(sdlRenderer,
-                           backgroundColor.r,
-                           backgroundColor.g,
-                           backgroundColor.b,
-                           backgroundColor.a);
-    SDL_RenderClear(sdlRenderer);
-  }
+  SDL_SetRenderTarget(sdlRenderer, intermediate);
+  SDL_SetRenderDrawColor(sdlRenderer,
+                         backgroundColor.r,
+                         backgroundColor.g,
+                         backgroundColor.b,
+                         backgroundColor.a);
+  SDL_RenderClear(sdlRenderer);
 }
 
 void Draw::renderIntermediate() {
-  if (mode == DrawMode::CPU) {
-    SDL_UpdateTexture(intermediate, NULL, screen->pixels, screen->pitch);
-  }
   SDL_SetRenderTarget(sdlRenderer, nullptr);
   SDL_RenderClear(sdlRenderer);
   SDL_RenderCopyEx(sdlRenderer,

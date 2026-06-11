@@ -24,7 +24,8 @@ Animation::Animation(const Animation& other)
       t(other.t),
       totalDuration(other.totalDuration),
       spriteIndex(other.spriteIndex),
-      loop(other.loop) {}
+      loop(other.loop),
+      flipped(other.flipped) {}
 
 Animation& Animation::operator=(const Animation& other) {
   if (this == &other) {
@@ -38,6 +39,7 @@ Animation& Animation::operator=(const Animation& other) {
   totalDuration = other.totalDuration;
   spriteIndex = other.spriteIndex;
   loop = other.loop;
+  flipped = other.flipped;
 
   return *this;
 }

@@ -17,10 +17,6 @@ public:
       textures;
   std::unordered_map<std::string, std::unique_ptr<SDL_Texture, SDL_Deleter>>
       dynamicTextures;
-  std::unordered_map<std::string, std::unique_ptr<SDL_Surface, SDL_Deleter>>
-      surfaces;
-  std::unordered_map<std::string, std::unique_ptr<SDL_Surface, SDL_Deleter>>
-      dynamicSurfaces;
   std::unordered_map<std::string, std::unique_ptr<Sprite>> sprites;
   std::unordered_map<std::string, std::unique_ptr<AnimationDefinition>> anims;
   std::unordered_map<std::string, std::unique_ptr<TTF_Font, SDL_Deleter>> fonts;
@@ -36,8 +32,6 @@ public:
 
   void storeTexture(std::string_view name, SDL_Texture* tex);
   void storeDynamicTexture(std::string_view name, SDL_Texture* tex);
-  void storeSurface(std::string_view name, SDL_Surface* surf);
-  void storeDynamicSurface(std::string_view name, SDL_Surface* surf);
   void storeSprite(std::string_view name, Sprite* sprite);
   AnimationDefinition& storeAnimationDefinition(std::string_view name,
                                                 const bool loop);
@@ -50,8 +44,6 @@ public:
   SDL_Texture* getTexture(std::string_view name);
   SDL_Texture* getDynamicTexture(std::string_view name);
   SDL_Texture* getTextTexture(std::string_view name);
-  SDL_Surface* getSurface(std::string_view name);
-  SDL_Surface* getDynamicSurface(std::string_view name);
   Sprite& getSprite(std::string_view name);
   AnimationDefinition& getAnimationDefinition(std::string_view name);
   TTF_Font*
@@ -60,7 +52,7 @@ public:
   Mix_Music* getMusic(std::string_view name);
   Animation createAnimation(std::string_view name, bool flipped = false);
 
-  bool hasDynamicTextureOrSurface(std::string_view name);
+  bool hasDynamicTexture(std::string_view name);
 
   void logAllSprites();
   void logAllAnimationDefinitions();

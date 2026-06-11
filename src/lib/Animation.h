@@ -30,6 +30,7 @@ struct Animation {
   int totalDuration;
   int spriteIndex;
   bool loop;
+  bool flipped = false;
   static std::unique_ptr<Sprite> staticDefaultSprite;
 
   Animation();

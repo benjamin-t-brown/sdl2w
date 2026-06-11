@@ -5,8 +5,8 @@ SDL2W - SDL2 Wrapper
 This is an opinionated C++17 library which wraps SDL2 functionality and includes the following features:
 
 - Window and Renderer creation
-  - GPU Mode
-  - CPU Mode
+  - GPU Mode (hardware-accelerated SDL renderer)
+  - CPU Mode (software SDL renderer; same texture-based draw path)
 - Asset Management
   - PNG images
   - WAV sound files
@@ -16,7 +16,6 @@ This is an opinionated C++17 library which wraps SDL2 functionality and includes
   - WASM IndexDB Persistent Storage
 - 2d Rendering
   - Sprites with Translate/Rotate/Scale
-  - Cached flipped sprites
   - Alpha blending
   - Animations with Timing
   - Render to Texture

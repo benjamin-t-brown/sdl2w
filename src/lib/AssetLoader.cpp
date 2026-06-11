@@ -103,44 +103,6 @@ void split(
   out.emplace_back(str.substr(lastPos));
 }
 
-SDL_Surface* flipSurfaceHorizontal(SDL_Surface* surface) {
-  if (!surface)
-    return nullptr;
-
-  SDL_Surface* flipped = SDL_CreateRGBSurface(surface->flags,
-                                              surface->w,
-                                              surface->h,
-                                              surface->format->BitsPerPixel,
-                                              surface->format->Rmask,
-                                              surface->format->Gmask,
-                                              surface->format->Bmask,
-                                              surface->format->Amask);
-  if (!flipped) {
-    return nullptr;
-  }
-
-  SDL_LockSurface(surface);
-  SDL_LockSurface(flipped);
-
-  for (int y = 0; y < surface->h; y++) {
-    uint8_t* srcRow =
-        static_cast<uint8_t*>(surface->pixels) + y * surface->pitch;
-    uint8_t* dstRow =
-        static_cast<uint8_t*>(flipped->pixels) + y * flipped->pitch;
-    for (int x = 0; x < surface->w; x++) {
-      uint8_t* srcPixel = srcRow + x * surface->format->BytesPerPixel;
-      uint8_t* dstPixel =
-          dstRow + (surface->w - 1 - x) * surface->format->BytesPerPixel;
-      memcpy(dstPixel, srcPixel, surface->format->BytesPerPixel);
-    }
-  }
-
-  SDL_UnlockSurface(surface);
-  SDL_UnlockSurface(flipped);
-
-  return flipped;
-}
-
 bool strEndsWith(std::string_view fullString, std::string_view ending) {
   if (fullString.length() >= ending.length()) {
     return fullString.compare(fullString.length() - ending.length(),
@@ -216,19 +178,12 @@ void AssetLoader::loadPicture(std::string_view name, std::string_view path) {
 
   SDL_Texture* tex = draw.createTexture(loadedImage);
   store.storeTexture(name, tex);
-  store.storeSurface(name, loadedImage);
-  loadSprite(name, tex, loadedImage, false);
-
-  // surfaces need to be manually flipped
-  SDL_Surface* flippedImage = flipSurfaceHorizontal(loadedImage);
-  const std::string flippedName = std::string(name) + std::string(SPRITE_FLIPPED);
-  store.storeSurface(flippedName, flippedImage);
-  loadSprite(flippedName, tex, flippedImage, true);
+  SDL_FreeSurface(loadedImage);
+  loadSprite(name, tex, false);
 }
 
 void AssetLoader::loadSprite(std::string_view name,
                              SDL_Texture* tex,
-                             SDL_Surface* surf,
                              bool flipped) {
   int width;
   int height;
@@ -237,12 +192,11 @@ void AssetLoader::loadSprite(std::string_view name,
   store.storeSprite(
       nameStr,
       new Sprite{
-          nameStr, Renderable{tex, surf}, 0, 0, width, height, width, flipped});
+          nameStr, Renderable{tex, nullptr}, 0, 0, width, height, width, flipped});
 }
 
 void AssetLoader::loadSprite(std::string_view name,
                              SDL_Texture* tex,
-                             SDL_Surface* surf,
                              int spritesheetWidth,
                              int x,
                              int y,
@@ -253,7 +207,7 @@ void AssetLoader::loadSprite(std::string_view name,
   store.storeSprite(
       nameStr,
       new Sprite{nameStr,
-                 Renderable{tex, surf},
+                 Renderable{tex, nullptr},
                  x,
                  y,
                  w,
@@ -270,8 +224,6 @@ void AssetLoader::loadSpriteSheet(std::string_view pictureName,
                                   int h) {
   const std::string pictureStr(pictureName);
   Sprite& sprite = store.getSprite(pictureStr);
-  Sprite& spriteFlipped =
-      store.getSprite(pictureStr + std::string(SPRITE_FLIPPED));
 
   int num_x = sprite.w / w;
   int ctr = 0;
@@ -282,25 +234,12 @@ void AssetLoader::loadSpriteSheet(std::string_view pictureName,
     spriteNameToPictureAlias[sprName] = pictureStr;
     loadSprite(sprName,
                sprite.renderable.tex,
-               sprite.renderable.surf,
                sprite.w,
                (i % num_x) * w,
                (i / num_x) * h,
                w,
                h,
                false);
-
-    spriteNameToPictureAlias[sprName + std::string(SPRITE_FLIPPED)] =
-        pictureStr;
-    loadSprite(sprName + std::string(SPRITE_FLIPPED),
-               spriteFlipped.renderable.tex,
-               spriteFlipped.renderable.surf,
-               sprite.w,
-               (i % num_x) * w,
-               (i / num_x) * h,
-               w,
-               h,
-               true);
     ctr++;
   }
 }
@@ -363,7 +302,6 @@ void AssetLoader::loadSpriteAssetsFromFile(std::string_view path) {
         spriteNameToPictureAlias[name] = lastPicture;
         loadSprite(name,
                    spriteImage.renderable.tex,
-                   spriteImage.renderable.surf,
                    spriteImage.w,
                    x,
                    y,

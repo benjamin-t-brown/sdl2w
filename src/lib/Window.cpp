@@ -31,7 +31,7 @@ bool Window::_inputEnabled = true;
 bool Window::_isInit = false;
 
 Window::Window(Store& store, const Window2Params& params)
-    : store(store), draw(sdl2w::Draw(params.mode, store)) {
+    : store(store), draw(store) {
   if (!_isInit) {
     LOG(WARN) << "[sdl2w] SDL is not initialized, so Window cannot be created."
               << Logger::endl;
@@ -48,9 +48,12 @@ Window::Window(Store& store, const Window2Params& params)
                                params.w,
                                params.h,
                                SDL_WINDOW_SHOWN);
-  sdlRenderer = SDL_CreateRenderer(
-      sdlWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  Uint32 rendererFlags = SDL_RENDERER_PRESENTVSYNC;
+  rendererFlags |= (params.mode == DrawMode::GPU) ? SDL_RENDERER_ACCELERATED
+                                                  : SDL_RENDERER_SOFTWARE;
+  sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, rendererFlags);
   SDL_RenderSetLogicalSize(sdlRenderer, params.renderW, params.renderH);
+  SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // or "nearest"
   Uint32 format = SDL_GetWindowPixelFormat(sdlWindow);
   draw.setSdlRenderer(sdlRenderer, params.renderW, params.renderH, format);
 
