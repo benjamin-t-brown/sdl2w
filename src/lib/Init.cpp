@@ -1,8 +1,8 @@
 #include "Init.h"
 #include "L10n.h"
 #include "Logger.h"
-#include <bmin/DynArray.h>
-#include <bmin/String.h>
+#include "bmin/DynArray.h"
+#include "bmin/String.h"
 
 namespace sdl2w {
 

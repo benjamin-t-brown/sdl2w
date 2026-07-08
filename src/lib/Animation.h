@@ -1,8 +1,8 @@
 #pragma once
 
-#include <bmin/DynArray.h>
-#include <bmin/String.h>
-#include <bmin/UniquePtr.h>
+#include "bmin/DynArray.h"
+#include "bmin/String.h"
+#include "bmin/UniquePtr.h"
 #include <string_view>
 
 namespace sdl2w {

@@ -12,9 +12,9 @@ drawText(TRANSLATE("Example Text")), {});
 
 #pragma once
 
-#include <bmin/DynArray.h>
-#include <bmin/Map.h>
-#include <bmin/String.h>
+#include "bmin/DynArray.h"
+#include "bmin/Map.h"
+#include "bmin/String.h"
 #include <initializer_list>
 #include <string_view>
 

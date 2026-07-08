@@ -14,7 +14,6 @@ TARGET ?= native
 .DEFAULT_GOAL := native
 BASE_BUILD_DIR = build
 
-# bmin: clone to ../bmin, build to ../bmin/bmin/, copy into deps/ for -Ideps + <bmin/...>
 BMIN_URL ?= https://github.com/benjamin-t-brown/bmin.git
 BMIN_REF ?= main
 BMIN_REPO ?= ../bmin
@@ -22,8 +21,8 @@ BMIN_SRC = $(BMIN_REPO)/src
 BMIN_BUILD_OUT = $(BMIN_REPO)/bmin
 BMIN_BUILT_LIB = $(BMIN_BUILD_OUT)/lib/libbmin.a
 BMIN_BUILT_INCLUDE = $(BMIN_BUILD_OUT)/include
-DEPS_DIR = deps
-DEPS_BMIN_LIB = $(DEPS_DIR)/lib/libbmin.a
+DEPS_DIR = .
+DEPS_BMIN_LIB = $(DEPS_DIR)/bmin/libbmin.a
 DEPS_BMIN_INCLUDE_MARKER = $(DEPS_DIR)/bmin/String.h
 
 EMCC_SDL_PORTS=\
@@ -43,15 +42,15 @@ endif
 
 DEBUG=true
 ifeq ($(TARGET),wasm)
-    INCLUDES= -I. -I$(DEPS_DIR)
+    INCLUDES= -I.
     FLAGS = -Wall -std=c++23 -Oz -flto  $(EMCC_SDL_PORTS)
     LIBS = $(DEPS_BMIN_LIB)
     CXX = em++
     AR = emar
 else
-    INCLUDES += -I. -I$(DEPS_DIR)
+    INCLUDES += -I.
     FLAGS += -Wall -std=c++23
-    LIBS += -L$(DEPS_DIR)/lib -lbmin
+    LIBS += -L$(DEPS_DIR)/bmin -lbmin
     ifeq ($(OS),Windows_NT)
         LIBS += -mconsole -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
     else
@@ -105,9 +104,9 @@ $(BMIN_BUILT_LIB): $(BMIN_REPO)/.git
 	@$(MAKE) -C $(BMIN_SRC) all TARGET=$(TARGET)
 
 $(DEPS_BMIN_INCLUDE_MARKER): $(BMIN_BUILT_LIB) $(wildcard $(BMIN_BUILT_INCLUDE)/* $(BMIN_BUILT_INCLUDE)/internal/*)
-	@mkdir -p $(DEPS_DIR)/bmin $(DEPS_DIR)/lib
+	@mkdir -p $(DEPS_DIR)/bmin
 	@cp -R $(BMIN_BUILT_INCLUDE)/* $(DEPS_DIR)/bmin/
-	@cp $(BMIN_BUILT_LIB) $(DEPS_DIR)/lib/
+	@cp $(BMIN_BUILT_LIB) $(DEPS_DIR)/bmin/
 
 bmin: $(DEPS_BMIN_INCLUDE_MARKER)
 
@@ -164,7 +163,7 @@ $(OBJ_OUTPUT_DIR)/%.o: %.cpp | $(DIRS_TO_CREATE)
 clean:
 	@echo "Cleaning for all targets..."
 	rm -rf $(BASE_BUILD_DIR)
-	rm -rf $(DEPS_DIR)
+	rm -rf $(DEPS_DIR)/bmin
 	rm -f libsdl2w.a Anims Anims.exe L10nScanner L10nScanner.exe
 	rm -rf ../sdl2w
 	rm -rf main.d

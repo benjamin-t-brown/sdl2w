@@ -3,8 +3,8 @@
 #include <fstream>
 #include <string_view>
 
-#include <bmin/String.h>
-#include <bmin/StringStream.h>
+#include "bmin/String.h"
+#include "bmin/StringStream.h"
 
 namespace sdl2w {
 

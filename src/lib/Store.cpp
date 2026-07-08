@@ -3,8 +3,8 @@
 #include "Defines.h"
 #include "Draw.h"
 #include "Logger.h"
-#include <bmin/DynArray.h>
-#include <bmin/String.h>
+#include "bmin/DynArray.h"
+#include "bmin/String.h"
 #include <algorithm>
 #include <string_view>
 

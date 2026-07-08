@@ -2,9 +2,9 @@
 
 #include "Draw.h"
 #include "Store.h"
-#include <bmin/DynArray.h>
-#include <bmin/Map.h>
-#include <bmin/String.h>
+#include "bmin/DynArray.h"
+#include "bmin/Map.h"
+#include "bmin/String.h"
 #include <string_view>
 
 namespace sdl2w {

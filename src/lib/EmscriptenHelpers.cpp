@@ -1,7 +1,7 @@
 #include "EmscriptenHelpers.h"
 #include "Logger.h"
 #include "Window.h"
-#include <bmin/StringStream.h>
+#include "bmin/StringStream.h"
 
 #ifdef __EMSCRIPTEN__
 #if __has_include(<SDL_mixer.h>)

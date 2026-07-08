@@ -2,7 +2,7 @@
 #include "Defines.h"
 #include "Logger.h"
 #include "Store.h"
-#include <bmin/StringStream.h>
+#include "bmin/StringStream.h"
 #include <algorithm>
 #include <string_view>
 

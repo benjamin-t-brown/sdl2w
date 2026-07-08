@@ -1,6 +1,6 @@
 #include <string_view>
 
-#include <bmin/String.h>
+#include "bmin/String.h"
 
 #include "lib/sdl2w/Animation.h"
 #include "lib/sdl2w/AssetLoader.h"

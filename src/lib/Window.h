@@ -3,9 +3,9 @@
 #include "Draw.h"
 #include "Events.h"
 #include "Store.h"
-#include <bmin/DynArray.h>
-#include <bmin/Queue.h>
-#include <bmin/String.h>
+#include "bmin/DynArray.h"
+#include "bmin/Queue.h"
+#include "bmin/String.h"
 #include <functional>
 #include <string_view>
 

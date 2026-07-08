@@ -2,8 +2,8 @@
 
 #include "Animation.h"
 #include "Defines.h"
-#include <bmin/Map.h>
-#include <bmin/String.h>
+#include "bmin/Map.h"
+#include "bmin/String.h"
 #include <string_view>
 #include <utility>
 
