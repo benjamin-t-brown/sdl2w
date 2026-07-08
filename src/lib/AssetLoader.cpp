@@ -337,12 +337,9 @@ void AssetLoader::loadSpriteAssetsFromFile(std::string_view path) {
         // LOG_LINE(DEBUG) << "Loading spriteList: " << arr[1] <<
         // Logger::endl;
         const bmin::String& name = arr[1];
-        int nVal = 0;
-        int wVal = 0;
-        int hVal = 0;
-        arr[2].parseInt(nVal);
-        arr[3].parseInt(wVal);
-        arr[4].parseInt(hVal);
+        const int nVal = arr[2].parseInt();
+        const int wVal = arr[3].parseInt();
+        const int hVal = arr[4].parseInt();
         const int n = nVal + lastSpriteInd;
         loadSpriteSheet(lastPicture.cStr(), name.cStr(), lastSpriteInd, n,
                         wVal, hVal);
@@ -354,14 +351,10 @@ void AssetLoader::loadSpriteAssetsFromFile(std::string_view path) {
         Sprite& spriteImage = store.getSprite(lastPicture.sliceView());
 
         const bmin::String& name = arr[1];
-        int x = 0;
-        int y = 0;
-        int wVal = 0;
-        int hVal = 0;
-        arr[2].parseInt(x);
-        arr[3].parseInt(y);
-        arr[4].parseInt(wVal);
-        arr[5].parseInt(hVal);
+        const int x = arr[2].parseInt();
+        const int y = arr[3].parseInt();
+        const int wVal = arr[4].parseInt();
+        const int hVal = arr[5].parseInt();
         spriteNameToPictureAlias[name] = lastPicture;
         loadSprite(name.cStr(),
                    spriteImage.renderable.tex,
@@ -418,9 +411,10 @@ void AssetLoader::loadAnimationAssetsFromFile(std::string_view path) {
           int frames = 0;
 
           try {
-            if (!strFrames.parseInt(frames)) {
+            if (!strFrames.isInt()) {
               throw std::invalid_argument("invalid frame count");
             }
+            frames = strFrames.parseInt();
           } catch (std::exception&) {
             LOG_LINE(ERROR)
                 << "[sdl2w] Failed to load anim sprite for: " << animName
@@ -515,10 +509,10 @@ void AssetLoader::loadAssetFile(std::string_view path) {
         if (!spriteNameStr.empty() && !framesStr.empty() &&
             !currentAnimationName.empty()) {
           try {
-            int frames = 0;
-            if (!framesStr.parseInt(frames)) {
+            if (!framesStr.isInt()) {
               throw std::invalid_argument("invalid frame count");
             }
+            const int frames = framesStr.parseInt();
             AnimationDefinition& animDef =
                 store.getAnimationDefinition(currentAnimationName.sliceView());
             animDef.addSprite(spriteNameStr.cStr(), frames);
@@ -563,21 +557,19 @@ void AssetLoader::loadAssetFile(std::string_view path) {
         if (tokens.size() >= 5) {
           const bmin::String picName = trim(
               std::string_view(tokens[1].cStr(), tokens[1].size()));
+          const bmin::String numStr = trim(
+              std::string_view(tokens[2].cStr(), tokens[2].size()));
+          const bmin::String widthStr = trim(
+              std::string_view(tokens[3].cStr(), tokens[3].size()));
+          const bmin::String heightStr = trim(
+              std::string_view(tokens[4].cStr(), tokens[4].size()));
           try {
-            int numSprites = 0;
-            int spriteWidth = 0;
-            int spriteHeight = 0;
-            const bmin::String numStr = trim(
-                std::string_view(tokens[2].cStr(), tokens[2].size()));
-            const bmin::String widthStr = trim(
-                std::string_view(tokens[3].cStr(), tokens[3].size()));
-            const bmin::String heightStr = trim(
-                std::string_view(tokens[4].cStr(), tokens[4].size()));
-            if (!numStr.parseInt(numSprites) ||
-                !widthStr.parseInt(spriteWidth) ||
-                !heightStr.parseInt(spriteHeight)) {
+            if (!numStr.isInt() || !widthStr.isInt() || !heightStr.isInt()) {
               throw std::invalid_argument("invalid number in Sprites line");
             }
+            const int numSprites = numStr.parseInt();
+            const int spriteWidth = widthStr.parseInt();
+            const int spriteHeight = heightStr.parseInt();
 
             if (!nextSpriteIndexForPicture.contains(picName)) {
               LOG(WARN)
