@@ -1,43 +1,39 @@
 #include "L10n.h"
+#include "AssetLoader.h"
 #include "Defines.h"
 #include "Logger.h"
 #include <string_view>
-#include <unordered_map>
 
 namespace sdl2w {
 
-std::string L10n::language = "en";
-std::unordered_map<std::string, std::unordered_map<size_t, std::string>>
-    L10n::locStrings;
-std::vector<std::string> L10n::supportedLanguages = {
-    // default supported languages
-    "en"};
+bmin::String L10n::language = "en";
+bmin::Map<bmin::String, bmin::Map<size_t, bmin::String>> L10n::locStrings;
+bmin::DynArray<bmin::String> L10n::supportedLanguages;
 bool L10n::enabledFlag = false;
 
-void L10n::init(const std::vector<std::string>& langs) {
+void L10n::init(std::initializer_list<std::string_view> langs) {
   if (!isEnabled()) {
     return;
   }
 
-  locStrings["default"] = std::unordered_map<size_t, std::string>();
+  locStrings[bmin::String("default")] = bmin::Map<size_t, bmin::String>();
 
-  supportedLanguages = langs;
+  supportedLanguages.clear();
+  for (std::string_view lang : langs) {
+    supportedLanguages.pushBack(bmin::String(lang.data(), lang.size()));
+  }
 
-  for (const auto& lang : supportedLanguages) {
-    const std::string path = "assets/translation." + lang + ".txt";
+  for (size_t i = 0; i < supportedLanguages.size(); ++i) {
+    const bmin::String& lang = supportedLanguages[i];
+    const bmin::String path =
+        bmin::String("assets/translation.") + lang + ".txt";
     try {
       LOG(DEBUG) << "[sdl2w] Loading translation file "
-                 << (std::string(ASSETS_PREFIX) + path) << Logger::endl;
-      std::ifstream file(std::string(ASSETS_PREFIX) + path);
-      if (!file) {
-        LOG_LINE(ERROR) << "[sdl2w] Error opening file: " << path
-                        << Logger::endl;
-        throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
-      }
-      std::stringstream buffer;
-      buffer << file.rdbuf();
-
-      loadLanguage(lang, buffer.str());
+                 << (bmin::String(ASSETS_PREFIX.data(), ASSETS_PREFIX.size()) +
+                     path)
+                 << Logger::endl;
+      const bmin::String content = loadFileAsString(path.sliceView());
+      loadLanguage(lang.sliceView(), content.sliceView());
     } catch (std::exception& e) {
       LOG_LINE(ERROR) << "Failed to load language file '" << path
                       << "': " << e.what() << Logger::endl;
@@ -50,37 +46,63 @@ void L10n::loadLanguage(std::string_view lang, std::string_view langText) {
     return;
   }
 
-  const std::string langStr(lang);
-  locStrings[langStr] = std::unordered_map<size_t, std::string>();
-  const std::string langTextStr(langText);
-  std::istringstream iss(langTextStr);
-  std::string line;
-  while (std::getline(iss, line)) {
-    // Find the first quoted part (original)
-    size_t firstQuote = line.find('[');
-    if (firstQuote == std::string::npos) {
-      continue;
-    }
-    size_t secondQuote = line.find(']', firstQuote + 1);
-    if (secondQuote == std::string::npos) {
-      continue;
-    }
-    std::string original =
-        line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+  const bmin::String langStr(lang.data(), lang.size());
+  locStrings[langStr] = bmin::Map<size_t, bmin::String>();
 
-    // Find the second quoted part (translated)
-    size_t thirdQuote = line.find('{', secondQuote + 1);
-    if (thirdQuote == std::string::npos) {
-      continue;
+  size_t start = 0;
+  while (start <= langText.size()) {
+    const size_t end = langText.find('\n', start);
+    std::string_view line;
+    if (end == std::string_view::npos) {
+      line = langText.substr(start);
+      start = langText.size() + 1;
+    } else {
+      line = langText.substr(start, end - start);
+      start = end + 1;
     }
-    size_t fourthQuote = line.find('}', thirdQuote + 1);
-    if (fourthQuote == std::string::npos) {
-      continue;
+    if (!line.empty() && line.back() == '\r') {
+      line = line.substr(0, line.size() - 1);
     }
-    std::string translated =
-        line.substr(thirdQuote + 1, fourthQuote - thirdQuote - 1);
 
-    locStrings[langStr][hash(original)] = translated;
+    const size_t firstQuote = line.find('[');
+    if (firstQuote == std::string_view::npos) {
+      if (end == std::string_view::npos) {
+        break;
+      }
+      continue;
+    }
+    const size_t secondQuote = line.find(']', firstQuote + 1);
+    if (secondQuote == std::string_view::npos) {
+      if (end == std::string_view::npos) {
+        break;
+      }
+      continue;
+    }
+    const bmin::String original(line.data() + firstQuote + 1,
+                                secondQuote - firstQuote - 1);
+
+    const size_t thirdQuote = line.find('{', secondQuote + 1);
+    if (thirdQuote == std::string_view::npos) {
+      if (end == std::string_view::npos) {
+        break;
+      }
+      continue;
+    }
+    const size_t fourthQuote = line.find('}', thirdQuote + 1);
+    if (fourthQuote == std::string_view::npos) {
+      if (end == std::string_view::npos) {
+        break;
+      }
+      continue;
+    }
+    const bmin::String translated(line.data() + thirdQuote + 1,
+                                  fourthQuote - thirdQuote - 1);
+
+    locStrings[langStr][hash(original.sliceView())] = translated;
+
+    if (end == std::string_view::npos) {
+      break;
+    }
   }
 }
 
@@ -92,9 +114,8 @@ void L10n::setLanguage(std::string_view lang) {
     return;
   }
 
-  const std::string langStr(lang);
-  auto it = locStrings.find(langStr);
-  if (it != locStrings.end()) {
+  const bmin::String langStr(lang.data(), lang.size());
+  if (locStrings.contains(langStr)) {
     language = langStr;
     LOG(DEBUG) << "[sdl2w] Language set to '" << langStr << "'" << Logger::endl;
   } else {
@@ -103,25 +124,26 @@ void L10n::setLanguage(std::string_view lang) {
   }
 }
 
-const std::unordered_map<size_t, std::string>& L10n::getStrings() {
+const bmin::Map<size_t, bmin::String>& L10n::getStrings() {
   return locStrings[language];
 }
 
-std::string L10n::trans(size_t id) {
-  auto it = getStrings().find(id);
-  if (it != getStrings().end()) {
-    return it->second;
+bmin::String L10n::trans(size_t id) {
+  const bmin::Map<size_t, bmin::String>& strings = getStrings();
+  auto it = const_cast<bmin::Map<size_t, bmin::String>&>(strings).find(id);
+  if (it != strings.end()) {
+    return (*it).value;
   }
   return "?MISSING?";
 }
 
 size_t L10n::hash(std::string_view str) {
-  std::hash<std::string> hasher;
-  size_t result = hasher(std::string(str));
+  const size_t result = std::hash<std::string_view>{}(str);
 
-  // "default" bypasses translation files
-  if (locStrings["default"].find(result) == locStrings["default"].end()) {
-    locStrings["default"][result] = std::string(str);
+  bmin::Map<size_t, bmin::String>& defaults =
+      locStrings[bmin::String("default")];
+  if (!defaults.contains(result)) {
+    defaults[result] = bmin::String(str.data(), str.size());
   }
 
   return result;

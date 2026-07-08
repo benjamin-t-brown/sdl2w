@@ -2,9 +2,8 @@
 #include "Defines.h"
 #include "Logger.h"
 #include "Store.h"
+#include <bmin/StringStream.h>
 #include <algorithm>
-#include <sstream>
-#include <string>
 #include <string_view>
 
 #if __has_include(<SDL.h>)
@@ -111,26 +110,26 @@ int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius) {
 
 std::pair<int, int> Draw::measureText(std::string_view text,
                                       const RenderTextParams& params) {
-  TTF_Font* font = store.getFont(params.fontName, params.fontSize);
-  const std::string textStr(text);
+  TTF_Font* font = store.getFont(params.fontName.sliceView(), params.fontSize);
+  bmin::String textStr(text.data(), text.size());
   int ww = 0, hh = 0;
-  TTF_SizeUTF8(font, textStr.c_str(), &ww, &hh);
+  TTF_SizeUTF8(font, textStr.cStr(), &ww, &hh);
   return {ww, hh};
 }
 
 SDL_Texture* Draw::getTextTexture(std::string_view text,
                                    const RenderTextParams& params) {
-  std::stringstream keyStream;
-  keyStream << text << params.fontSize << params.fontName << params.color.r
-            << params.color.g << params.color.b;
-  const std::string key = keyStream.str();
-  if (store.hasDynamicTexture(key)) {
-    return store.getDynamicTexture(key);
+  bmin::StringStream keyStream;
+  keyStream << text << static_cast<int>(params.fontSize) << params.fontName
+            << params.color.r << params.color.g << params.color.b;
+  const bmin::String key = keyStream.str();
+  if (store.hasDynamicTexture(key.sliceView())) {
+    return store.getDynamicTexture(key.sliceView());
   }
 
-  TTF_Font* font = store.getFont(params.fontName, params.fontSize);
-  const std::string textStr(text);
-  auto [ww, hh] = measureText(textStr, params);
+  TTF_Font* font = store.getFont(params.fontName.sliceView(), params.fontSize);
+  bmin::String textStr(text.data(), text.size());
+  auto [ww, hh] = measureText(text, params);
   SDL_Surface* blitSurface = SDL_CreateRGBSurface(0,
                                                   ww,
                                                   hh,
@@ -152,7 +151,7 @@ SDL_Texture* Draw::getTextTexture(std::string_view text,
       blitSurface, nullptr, SDL_MapRGBA(blitSurface->format, 0, 0, 0, 0));
 
   SDL_Surface* msg =
-      TTF_RenderUTF8_Blended(font, textStr.c_str(), params.color);
+      TTF_RenderUTF8_Blended(font, textStr.cStr(), params.color);
   SDL_SetSurfaceBlendMode(msg, SDL_BLENDMODE_BLEND);
   SDL_BlitSurface(msg, nullptr, blitSurface, nullptr);
   SDL_FreeSurface(msg);
@@ -164,7 +163,7 @@ SDL_Texture* Draw::getTextTexture(std::string_view text,
   SDL_UpdateTexture(texPtr, nullptr, blitSurface->pixels, blitSurface->pitch);
   SDL_FreeSurface(blitSurface);
 
-  store.storeDynamicTexture(key, texPtr);
+  store.storeDynamicTexture(key.sliceView(), texPtr);
   return texPtr;
 }
 
@@ -301,8 +300,7 @@ void Draw::drawSpriteInner(const Sprite& sprite,
   SDL_Texture* tex = sprite.renderable.tex;
 
   if (tex == nullptr) {
-    if (invalidSpriteWarnings.find(sprite.name) ==
-        invalidSpriteWarnings.end()) {
+    if (!invalidSpriteWarnings.contains(sprite.name)) {
       LOG_LINE(ERROR) << "[sdl2w] Cannot drawSprite - Sprite missing required "
                          "texture: "
                       << sprite.name << Logger::endl;
@@ -352,7 +350,8 @@ void Draw::drawAnimation(const Animation& anim,
   } else {
     LOG_LINE(ERROR) << "Anim has not been initialized: '" << anim.toString()
                     << "'" << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+    THROW_RUNTIME_ERROR(
+        bmin::String(FAIL_ERROR_TEXT.data(), FAIL_ERROR_TEXT.size()));
   }
 }
 

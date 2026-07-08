@@ -1,10 +1,10 @@
 #pragma once
 
+#include <bmin/DynArray.h>
+#include <bmin/Map.h>
+#include <bmin/String.h>
+#include <bmin/UniquePtr.h>
 #include <functional>
-#include <map>
-#include <memory>
-#include <stack>
-#include <string>
 #include <string_view>
 
 union SDL_Event;
@@ -39,11 +39,15 @@ enum KeyboardEventCb {
 
 class Events {
 private:
-  std::stack<std::unique_ptr<EventRoute>> routes;
-  std::map<std::string, bool> keys;
+  bmin::DynArray<bmin::UniquePtr<EventRoute>> routes;
+  bmin::Map<bmin::String, bool> keys;
   bool shouldPushRoute = false;
   bool shouldPopRoute = false;
   std::function<void(SDL_Event)> cb;
+
+  bmin::UniquePtr<EventRoute>& currentRoute() {
+    return routes[routes.size() - 1];
+  }
 
 public:
   bool isMouseDown = false;

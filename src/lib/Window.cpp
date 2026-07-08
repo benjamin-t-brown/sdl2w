@@ -11,17 +11,11 @@
 
 #if __has_include(<SDL.h>)
 #include <SDL.h>
-#include <SDL_audio.h>
-#include <SDL_image.h>
 #include <SDL_mixer.h>
-#include <SDL_surface.h>
 #include <SDL_ttf.h>
 #else
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_audio.h>
-#include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_ttf.h>
 #endif
 
@@ -42,7 +36,7 @@ Window::Window(Store& store, const Window2Params& params)
              << " " << params.w << " " << params.h << Logger::endl;
 
   // create window and renderer
-  sdlWindow = SDL_CreateWindow(params.title.c_str(),
+  sdlWindow = SDL_CreateWindow(params.title.cStr(),
                                params.x,
                                params.y,
                                params.w,
@@ -161,14 +155,15 @@ void Window::init() {
   // initialize fonts
   if (TTF_Init() < 0) {
     LOG_LINE(ERROR) << "[sdl2w] SDL_ttf could not initialize! "
-                    << std::string(TTF_GetError()) << Logger::endl;
-    throw std::runtime_error(std::string(FAIL_ERROR_TEXT));
+                    << TTF_GetError() << Logger::endl;
+    THROW_RUNTIME_ERROR(
+        bmin::String(FAIL_ERROR_TEXT.data(), FAIL_ERROR_TEXT.size()));
   }
 
   // initialize audio
   if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 1, 1024) < 0) {
     LOG_LINE(ERROR) << "[sdl2w] SDL_mixer could not initialize! "
-                    << std::string(Mix_GetError()) << Logger::endl;
+                    << Mix_GetError() << Logger::endl;
     _soundEnabled = false;
   }
 
@@ -204,9 +199,9 @@ void Window::renderLoop() {
   }
 
   lastFrameTime = nowMicroSeconds;
-  pastFrameTimes.push_back(deltaTime);
-  if (pastFrameTimes.size() > 10) {
-    pastFrameTimes.pop_front();
+  pastFrameTimes.push(deltaTime);
+  while (pastFrameTimes.size() > 10) {
+    pastFrameTimes.pop();
   }
 
   SDL_Event e;

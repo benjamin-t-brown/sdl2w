@@ -2,10 +2,9 @@
 
 #include "Animation.h"
 #include "Defines.h"
-#include <memory>
-#include <string>
+#include <bmin/Map.h>
+#include <bmin/String.h>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 
 #if __has_include(<SDL2/SDL_pixels.h>) && __has_include(<SDL2/SDL_stdinc.h>)
@@ -46,7 +45,7 @@ struct RenderableParams {
 };
 
 struct RenderTextParams {
-  std::string fontName = "default";
+  bmin::String fontName = "default";
   TextSize fontSize = TextSize::TEXT_SIZE_16;
   int x = 0;
   int y = 0;
@@ -62,7 +61,7 @@ struct Renderable {
 };
 
 struct Sprite {
-  std::string name;
+  bmin::String name;
   Renderable renderable;
   int x = 0;
   int y = 0;
@@ -88,7 +87,7 @@ class Draw {
   SDL_Color backgroundColor = {0, 0, 0, 255};
   double renderRotationAngle = 0.0;
   int globalAlpha = 255;
-  std::unordered_map<std::string, bool> invalidSpriteWarnings;
+  bmin::Map<bmin::String, bool> invalidSpriteWarnings;
 
   SDL_Texture* getTextTexture(std::string_view text,
                               const RenderTextParams& params);

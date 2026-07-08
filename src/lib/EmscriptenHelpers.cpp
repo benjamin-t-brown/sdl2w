@@ -1,7 +1,7 @@
 #include "EmscriptenHelpers.h"
 #include "Logger.h"
 #include "Window.h"
-#include <string>
+#include <bmin/StringStream.h>
 
 #ifdef __EMSCRIPTEN__
 #if __has_include(<SDL_mixer.h>)
@@ -24,10 +24,10 @@ void setEmscriptenWindow(sdl2w::Window* window) {
       << sdl2w::Logger::endl;
 
 #ifdef __EMSCRIPTEN__
-  std::stringstream ss;
+  bmin::StringStream ss;
   auto [width, height] = window->getDraw().getRenderSize();
   ss << "window.Lib.notifyTargetWindowSize(" << width << ", " << height << ")";
-  emscripten_run_script(ss.str().c_str());
+  emscripten_run_script(ss.str().cStr());
 #endif
 }
 bool isEmscriptenEnv() {
@@ -40,28 +40,26 @@ bool isEmscriptenEnv() {
 
 void notifyGameStarted() {
 #ifdef __EMSCRIPTEN__
-  const std::string script = std::string("window.Lib.notifyGameStarted()");
-  emscripten_run_script(script.c_str());
+  emscripten_run_script("window.Lib.notifyGameStarted()");
 #endif
 }
 void notifyGameReady() {
 #ifdef __EMSCRIPTEN__
-  const std::string script = std::string("window.Lib.notifyGameReady()");
-  emscripten_run_script(script.c_str());
+  emscripten_run_script("window.Lib.notifyGameReady()");
 #endif
 }
 void notifyGameCompleted(std::string_view result) {
 #ifdef __EMSCRIPTEN__
-  const std::string script = std::string("window.Lib.notifyGameCompleted('") +
-                             std::string(result) + "')";
-  emscripten_run_script(script.c_str());
+  bmin::String script = bmin::String("window.Lib.notifyGameCompleted('") +
+                         bmin::String(result.data(), result.size()) + "')";
+  emscripten_run_script(script.cStr());
 #endif
 }
 void notifyGameGeneric(std::string_view payload) {
 #ifdef __EMSCRIPTEN__
-  const std::string script = std::string("window.Lib.notifyGameGeneric('") +
-                             std::string(payload) + "')";
-  emscripten_run_script(script.c_str());
+  bmin::String script = bmin::String("window.Lib.notifyGameGeneric('") +
+                         bmin::String(payload.data(), payload.size()) + "')";
+  emscripten_run_script(script.cStr());
 #endif
 }
 } // namespace emshelpers
@@ -71,7 +69,6 @@ extern "C" {
 
 EMSCRIPTEN_KEEPALIVE
 void setVolume(int volumePct) {
-  // set master volume: both music and sound
   emshelpers::emscriptenWindow->setSoundPct(double(volumePct));
   emshelpers::emscriptenWindow->setMusicPct(double(volumePct));
   sdl2w::Logger().get(sdl2w::DEBUG)
@@ -115,8 +112,8 @@ void setKeyStatus(int status) {
 }
 EMSCRIPTEN_KEEPALIVE
 void sendEvent(int event, int payload) {
-  emshelpers::emscriptenWindow->pushExternalEvent(event,
-                                                  std::to_string(payload));
+  emshelpers::emscriptenWindow->pushExternalEvent(
+      event, bmin::toString(payload).sliceView());
   sdl2w::Logger().get(sdl2w::DEBUG) << "External event received: " << event
                                     << ":" << payload << sdl2w::Logger::endl;
 }

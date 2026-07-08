@@ -2,6 +2,9 @@
 
 #include "Draw.h"
 #include "Store.h"
+#include <bmin/DynArray.h>
+#include <bmin/Map.h>
+#include <bmin/String.h>
 #include <string_view>
 
 namespace sdl2w {
@@ -41,8 +44,8 @@ class AssetLoader {
   void loadAssetFile(std::string_view path);
 
 public:
-  std::unordered_map<std::string, std::string> picturePathToAlias;
-  std::unordered_map<std::string, std::string> spriteNameToPictureAlias;
+  bmin::Map<bmin::String, bmin::String> picturePathToAlias;
+  bmin::Map<bmin::String, bmin::String> spriteNameToPictureAlias;
   static bool fsReady;
 
   AssetLoader(Draw& drawA, Store& storeA) : draw(drawA), store(storeA) {}
@@ -51,12 +54,12 @@ public:
   void loadAssetsFromFile(AssetFileType type, std::string_view path);
 };
 
-std::string slice(std::string_view str, int start, int end);
-std::string trim(std::string_view str);
+bmin::String slice(std::string_view str, int start, int end);
+bmin::String trim(std::string_view str);
 void split(std::string_view str,
            std::string_view delimiter,
-           std::vector<std::string>& out);
-std::string loadFileAsString(std::string_view path);
+           bmin::DynArray<bmin::String>& out);
+bmin::String loadFileAsString(std::string_view path);
 void saveFileAsString(std::string_view path, std::string_view content);
 
 } // namespace sdl2w

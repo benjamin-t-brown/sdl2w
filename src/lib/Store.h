@@ -5,27 +5,25 @@
 
 #include "Animation.h"
 #include "Defines.h"
-#include <memory>
+#include <bmin/Map.h>
+#include <bmin/String.h>
+#include <bmin/UniquePtr.h>
 #include <string_view>
-#include <unordered_map>
 
 namespace sdl2w {
 
 class Store {
 public:
-  std::unordered_map<std::string, std::unique_ptr<SDL_Texture, SDL_Deleter>>
-      textures;
-  std::unordered_map<std::string, std::unique_ptr<SDL_Texture, SDL_Deleter>>
+  bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>> textures;
+  bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>>
       dynamicTextures;
-  std::unordered_map<std::string, std::unique_ptr<Sprite>> sprites;
-  std::unordered_map<std::string, std::unique_ptr<AnimationDefinition>> anims;
-  std::unordered_map<std::string, std::unique_ptr<TTF_Font, SDL_Deleter>> fonts;
-  std::unordered_map<std::string, std::unique_ptr<Mix_Chunk, SDL_Deleter>>
-      sounds;
-  std::unordered_map<std::string, std::unique_ptr<Mix_Music, SDL_Deleter>>
-      musics;
+  bmin::Map<bmin::String, bmin::UniquePtr<Sprite>> sprites;
+  bmin::Map<bmin::String, bmin::UniquePtr<AnimationDefinition>> anims;
+  bmin::Map<bmin::String, bmin::UniquePtr<TTF_Font, SDL_Deleter>> fonts;
+  bmin::Map<bmin::String, bmin::UniquePtr<Mix_Chunk, SDL_Deleter>> sounds;
+  bmin::Map<bmin::String, bmin::UniquePtr<Mix_Music, SDL_Deleter>> musics;
 
-  std::unordered_map<std::string, std::string> fontAliases;
+  bmin::Map<bmin::String, bmin::String> fontAliases;
   AnimationDefinition defaultAnimDef = AnimationDefinition("default", false);
 
   Store() {}

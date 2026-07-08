@@ -1,9 +1,10 @@
 #pragma once
 
 #include <fstream>
-#include <sstream>
-#include <string>
 #include <string_view>
+
+#include <bmin/String.h>
+#include <bmin/StringStream.h>
 
 namespace sdl2w {
 
@@ -18,7 +19,7 @@ enum LogType { DEBUG, INFO, WARN, ERROR };
 
 class Logger {
 public:
-  static const std::string endl;
+  static const bmin::String endl;
   static LogType logLevel;
   static bool disabled;
   static bool colorEnabled;
@@ -28,19 +29,21 @@ public:
 
   Logger() { localLogLevel = DEBUG; };
   virtual ~Logger();
-  std::ostringstream& get(LogType level = INFO);
-  std::ostringstream& get(LogType level, const char* file, int line);
-  std::ostringstream os;
-  std::string getLabel(LogType type);
+  bmin::StringStream& get(LogType level = INFO);
+  bmin::StringStream& get(LogType level, const char* file, int line);
+  bmin::StringStream os;
+  bmin::String getLabel(LogType type);
   static void setLogToFile(bool logToFile);
   static void setLogLevel(LogType level);
 
   int printf(const char* format, ...);
 
-  static std::string getStackTrace();
+  static bmin::String getStackTrace();
   [[noreturn]] static void throwRuntimeError(std::string_view msg);
   [[noreturn]] static void
   throwRuntimeError(std::string_view msg, const char* file, int line);
+  [[noreturn]] static void throwRuntimeError(const bmin::String& msg,
+                                             const char* file, int line);
 };
 
 } // namespace sdl2w

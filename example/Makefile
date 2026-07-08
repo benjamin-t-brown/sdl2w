@@ -58,8 +58,8 @@ EMCC_EXPORTED=\
 -s EXPORTED_RUNTIME_METHODS=['ccall']
 
 DEBUG = true
-LIBS += -Llib/sdl2w -lsdl2w 
-INCLUDES += -I.
+LIBS += -Llib/sdl2w -lsdl2w -lbmin
+INCLUDES += -I. -Ilib/sdl2w
 ifeq ($(TARGET),wasm)
     FLAGS = -Wall -std=c++23 -Oz
     LIBS += $(EMCC_LIBS) $(EMCC_EXPORTED) --preload-file assets
@@ -116,10 +116,12 @@ sdl2w_wasm: $(SDL2W_STAMP)
 	@$(MAKE) _copy_sdl2w_artifacts
 
 _copy_sdl2w_artifacts:
-	@mkdir -p lib/sdl2w
-	@echo "Copying sdl2w artifacts from $(SDL2W_BUILD_OUTPUT_DIR) to lib/sdl2w..."
-	@cp -uv $(SDL2W_BUILD_OUTPUT_DIR)/lib/libsdl2w.a lib/sdl2w
-	@cp -uv $(SDL2W_BUILD_OUTPUT_DIR)/include/*.h lib/sdl2w
+	@mkdir -p lib/sdl2w/bmin
+	@echo "Copying sdl2w + bmin artifacts from $(SDL2W_BUILD_OUTPUT_DIR) to lib/sdl2w..."
+	@cp -uv $(SDL2W_BUILD_OUTPUT_DIR)/lib/libsdl2w.a lib/sdl2w/
+	@cp -uv $(SDL2W_BUILD_OUTPUT_DIR)/lib/libbmin.a lib/sdl2w/
+	@cp -uv $(SDL2W_BUILD_OUTPUT_DIR)/include/*.h lib/sdl2w/
+	@cp -Ruv $(SDL2W_BUILD_OUTPUT_DIR)/include/bmin/* lib/sdl2w/bmin/
 
 -include $(DEPENDS)
 -include $(LIB_DEPENDS)
@@ -147,6 +149,6 @@ clean:
 	rm -rf .build
 	rm -rf lib/sdl2w
 	rm -rf $(SDL2W_BUILD_OUTPUT_DIR)
-	rm -rf $(SDL2W_DIR_NAME)/src/build/
+	$(MAKE) -C "$(SDL2W_DIR_NAME)/src" clean
 	rm -rf $(SDL2W_STAMP)
 

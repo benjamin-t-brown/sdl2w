@@ -1,4 +1,6 @@
 sdl2w/
+bmin/
+src/deps/
 .cache
 *.o
 *.d

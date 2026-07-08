@@ -1,5 +1,7 @@
 #include <string_view>
 
+#include <bmin/String.h>
+
 #include "lib/sdl2w/Animation.h"
 #include "lib/sdl2w/AssetLoader.h"
 #include "lib/sdl2w/Draw.h"
@@ -24,7 +26,7 @@ void runProgram(int argc, char** argv) {
                            .renderW = w,
                            .renderH = h,
                        });
-  sdl2w::L10n::init(std::vector<std::string>({"en", "la"}));
+  sdl2w::L10n::init({"en", "la"});
 
   // language/log to file (requires monofonto)
   sdl2w::setupStartupArgs(argc, argv, window);
@@ -55,7 +57,7 @@ void runProgram(int argc, char** argv) {
 
   double fractalRotation = 0;
 
-  std::string lastKeyPressed = "";
+  bmin::String lastKeyPressed = "";
   window.getEvents().setKeyboardEvent(
       sdl2w::ON_KEY_DOWN, [&](std::string_view key, int button) {
         LOG(INFO) << "Keyboard down: " << key << " (" << button << ")"
@@ -82,7 +84,7 @@ void runProgram(int argc, char** argv) {
         }
 
         lastKeyPressed =
-            std::string(key) + " (" + std::to_string(button) + ")";
+            bmin::String(key.data(), key.size()) + " (" + bmin::toString(button) + ")";
       });
 
   auto _loadLoop = [&]() {
@@ -93,10 +95,10 @@ void runProgram(int argc, char** argv) {
   auto _onLoaded = [&]() {
     LOG(INFO) << "Init cb" << LOG_ENDL;
     try {
-      std::string localFile = sdl2w::loadFileAsString("localFile.txt");
+      bmin::String localFile = sdl2w::loadFileAsString("localFile.txt");
       LOG(INFO) << "localFile.txt contents: " << localFile << LOG_ENDL;
       localFile += "a";
-      sdl2w::saveFileAsString("localFile.txt", localFile);
+      sdl2w::saveFileAsString("localFile.txt", localFile.sliceView());
     } catch (std::exception& e) {
       LOG(INFO) << "localFile.txt does not exist, so creating it." << LOG_ENDL;
       sdl2w::saveFileAsString("localFile.txt", "Hello World!");
@@ -187,8 +189,10 @@ void runProgram(int argc, char** argv) {
                                 .color = {200, 200, 200},
                                 .centered = true});
 
+    const bmin::String lastKeyLabel =
+        bmin::String(TRANSLATE("Last key pressed: ")) + lastKeyPressed;
     d.drawText(
-        TRANSLATE("Last key pressed: ") + lastKeyPressed,
+        lastKeyLabel.sliceView(),
         sdl2w::RenderTextParams{.fontName = "default",
                                 .fontSize = sdl2w::TextSize::TEXT_SIZE_16,
                                 .x = 8,

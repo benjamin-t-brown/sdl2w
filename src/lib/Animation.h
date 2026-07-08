@@ -1,9 +1,9 @@
 #pragma once
 
-#include <memory>
-#include <string>
+#include <bmin/DynArray.h>
+#include <bmin/String.h>
+#include <bmin/UniquePtr.h>
 #include <string_view>
-#include <vector>
 
 namespace sdl2w {
 struct AnimationDefinition;
@@ -11,12 +11,12 @@ struct Sprite;
 class Store;
 
 struct AnimSpriteDefinition {
-  std::string name = "";
+  bmin::String name = "";
   int duration = 100;
 };
 
 struct Animation {
-  std::vector<AnimSpriteDefinition> spriteDefinitions;
+  bmin::DynArray<AnimSpriteDefinition> spriteDefinitions;
   // Animation stores its own sprites so it doesn't need access to a Store to
   // render. This makes it have a weak dependency on the Store it was created
   // from. Rust would probably not let you do this because each stored sprite
@@ -24,14 +24,14 @@ struct Animation {
   // which is owned by the Store. So if you unload the Store but keep the
   // Animation in memory, you will get a segfault when you attempt to render the
   // animation, because the pointers will no longer be valid.
-  std::vector<Sprite> storedSprites;
-  std::string name;
+  bmin::DynArray<Sprite> storedSprites;
+  bmin::String name;
   int t;
   int totalDuration;
   int spriteIndex;
   bool loop;
   bool flipped = false;
-  static std::unique_ptr<Sprite> staticDefaultSprite;
+  static bmin::UniquePtr<Sprite> staticDefaultSprite;
 
   Animation();
   Animation(std::string_view nameA, const bool loopA);
@@ -42,7 +42,7 @@ struct Animation {
 
   bool isInitialized() const;
   const Sprite& getCurrentSprite() const;
-  std::string toString() const;
+  bmin::String toString() const;
   void addSprite(const AnimSpriteDefinition& def, const Sprite& sprite);
   int getAnimIndex() const;
 
@@ -51,8 +51,8 @@ struct Animation {
 };
 
 struct AnimationDefinition {
-  std::vector<AnimSpriteDefinition> sprites;
-  std::string name;
+  bmin::DynArray<AnimSpriteDefinition> sprites;
+  bmin::String name;
   bool loop;
   AnimationDefinition(std::string_view nameA, const bool loopA);
 

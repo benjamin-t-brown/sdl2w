@@ -33,13 +33,16 @@ It also includes the following tools:
 - Localization Parser
   - parse source code for LOC strings and generate localization file
 
-The only dependencies for this project are SDL2 libs.
+The dependencies for this project are:
 
-SDL2
-SDL2_image
-SDL2_mixer
-SDL2_ttf
-SDL2_gfx
+- [bmin](https://github.com/benjamin-t-brown/bmin) — fetched automatically on first build into `bmin/` at the repo root; headers and `libbmin.a` are copied into `src/deps/`
+- SDL2
+- SDL2_image
+- SDL2_mixer
+- SDL2_ttf
+- SDL2_gfx
+
+bmin is cloned to `bmin/` at the repo root and built as part of `make native` / `make wasm`. Build outputs are copied to `src/deps/` (`deps/bmin/*.h`, `deps/lib/libbmin.a`). To remove the clone and copied deps: `make clean-deps` from `src/`. To pin a version: `make native BMIN_REF=v0.1.0` (or a commit SHA).
 
 # Build output
 
@@ -71,6 +74,58 @@ The build command outputs a folder "sdl2w" in the repo which contains
 ```
 include - include files for lib (to be ingested by your app)
 lib - linkable .a file
+```
+
+# IDE setup (Cursor / VS Code)
+
+For accurate go-to-definition, diagnostics, and refactoring, point your editor at a
+[`compile_commands.json`](https://clang.llvm.org/docs/JSONCompilationDatabase.html)
+at the repo root. That file is **gitignored** — generate it locally after dependencies
+are in place.
+
+sdl2w includes `<bmin/...>` headers from `src/deps/bmin/`, which only exist after bmin
+has been cloned and copied there by the build. Run a native build first (or let the
+script below fetch bmin for you), then generate compile commands.
+
+From an **MSYS2 UCRT64** shell (same environment used for `make native`):
+
+```bash
+# 1. First-time setup: clone bmin, build libs, populate src/deps/
+cd src
+make native
+cd ..
+
+# 2. Generate compile_commands.json at the repo root
+./compile-commands.sh
+```
+
+`compile-commands.sh` will also run `make -C src bmin` if needed, so step 1 is mainly
+to verify the project builds before you open the IDE. If you only need IntelliSense and
+have not built yet, `./compile-commands.sh` alone is enough to pull in bmin and write
+the database.
+
+Then open the **repository root** in Cursor or VS Code. Tools such as **clangd** and the
+Microsoft C/C++ extension read `compile_commands.json` automatically.
+
+Regenerate after changing Makefiles, include paths, or adding/removing source files:
+
+```bash
+./compile-commands.sh
+```
+
+The database covers `src/lib/*.cpp`, matching headers, and `example/main.cpp`. It uses
+the same flags as the native `make` build (`-I. -Ideps` from `src/`).
+
+On Windows, use the MSYS2 shell so paths and `g++` match the build:
+
+```text
+C:/progs/msys2/msys2_shell.cmd -defterm -here -no-start -ucrt64 -use-full-path
+```
+
+Optional: set `CXX` before running the script if `g++` is not on your PATH:
+
+```bash
+CXX=/ucrt64/bin/g++.exe ./compile-commands.sh
 ```
 
 # Tools
@@ -125,12 +180,59 @@ This starts an http server that points at the build.
 # Linking SDL2W in your game
 
 `sdl2w` builds a static library (`libsdl2w.a`) and headers.  
-When consuming it, add the include path and library path, then link SDL2W + SDL2 dependencies in your final app link step.
+A matching `libbmin.a` and `include/bmin/` headers are produced from the same sdl2w build — **consumers should use that bundled bmin**, not a separate checkout, so versions stay in sync.
 
-## Required artifacts from SDL2W
+## Consumer workflow (recommended)
 
-- `sdl2w/include/*.h`
-- `sdl2w/lib/libsdl2w.a`
+1. Clone/build sdl2w once (as a submodule, sibling directory, etc.):
+
+   ```bash
+   make -C path/to/sdl2w/src native
+   ```
+
+   This creates `path/to/sdl2w/sdl2w/` with libs and headers.
+
+2. Copy artifacts into your game project:
+
+   ```bash
+   path/to/sdl2w/copy-sdl2w-artifacts.sh path/to/yourgame/lib/sdl2w
+   ```
+
+   Or copy manually from `sdl2w/sdl2w/` (see layout below).
+
+3. Compile/link your game with **one** include dir and **one** lib dir:
+
+   ```bash
+   -Ipath/to/yourgame/lib/sdl2w
+   -Lpath/to/yourgame/lib/sdl2w
+   -lsdl2w -lbmin
+   ```
+
+   Use `#include <bmin/String.h>` and `#include "Window.h"` (or your include layout).
+
+The `example/` project follows this pattern: `make` in `example/` builds sdl2w if needed, then copies into `example/lib/sdl2w/`.
+
+If your game also uses bmin directly, use **only** the bmin headers and `libbmin.a` copied from sdl2w's build — do not link a second bmin.
+
+## Artifact layout after copy
+
+```
+lib/sdl2w/
+  libsdl2w.a
+  libbmin.a
+  Window.h, Draw.h, ...    # sdl2w headers
+  bmin/
+    String.h, Map.h, ...   # bmin headers (<bmin/...> includes)
+```
+
+## Required artifacts from SDL2W build (`sdl2w/sdl2w/`)
+
+- `include/*.h`
+- `include/bmin/*.h`
+- `lib/libsdl2w.a`
+- `lib/libbmin.a`
+
+When consuming it, add the include path and library path, then link SDL2W + bmin + SDL2 dependencies in your final app link step.
 
 ## Native linking (g++)
 
@@ -146,7 +248,7 @@ Typical example:
 
 ```
 g++ -std=c++23 -I/path/to/sdl2w/include main.cpp \
-  -L/path/to/sdl2w/lib -lsdl2w \
+  -L/path/to/sdl2w/lib -lsdl2w -lbmin \
   -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx \
   -o game
 ```
@@ -158,7 +260,7 @@ Set Emscripten options on your final game link command instead.
 
 Typical wasm final link options include:
 
-- `-L/path/to/sdl2w/lib -lsdl2w`
+- `-L/path/to/sdl2w/lib -lsdl2w -lbmin`
 - `-s USE_SDL=2`
 - `-s USE_SDL_IMAGE=2`
 - `-s USE_SDL_MIXER=2`
@@ -170,7 +272,7 @@ Example:
 
 ```
 em++ -std=c++23 -Oz -I/path/to/sdl2w/include main.cpp \
-  -L/path/to/sdl2w/lib -lsdl2w \
+  -L/path/to/sdl2w/lib -lsdl2w -lbmin \
   -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s USE_SDL_MIXER=2 -s USE_SDL_TTF=2 -s USE_SDL_GFX=2 \
   -s EXPORTED_FUNCTIONS='["_main"]' \
   -s EXPORTED_RUNTIME_METHODS='["ccall"]' \

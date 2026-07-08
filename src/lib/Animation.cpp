@@ -5,8 +5,8 @@
 
 namespace sdl2w {
 
-std::unique_ptr<Sprite> Animation::staticDefaultSprite =
-    std::make_unique<Sprite>(Sprite{
+bmin::UniquePtr<Sprite> Animation::staticDefaultSprite =
+    bmin::makeUnique<Sprite>(Sprite{
         .name = "staticDefaultSprite",
         .renderable = Renderable{.tex = nullptr, .surf = nullptr},
     });
@@ -15,7 +15,11 @@ Animation::Animation()
     : name(""), t(0), totalDuration(0), spriteIndex(0), loop(true) {}
 
 Animation::Animation(std::string_view nameA, const bool loopA)
-    : name(nameA), t(0), totalDuration(0), spriteIndex(0), loop(loopA) {}
+    : name(nameA.data(), nameA.size()),
+      t(0),
+      totalDuration(0),
+      spriteIndex(0),
+      loop(loopA) {}
 
 Animation::Animation(const Animation& other)
     : spriteDefinitions(other.spriteDefinitions),
@@ -46,9 +50,9 @@ Animation& Animation::operator=(const Animation& other) {
 
 Animation::Animation(const AnimationDefinition& def, Store& store)
     : name(""), t(0), totalDuration(0), spriteIndex(0), loop(true) {
-  for (const auto& spriteDef : def.sprites) {
-    Sprite& sprite = store.getSprite(spriteDef.name);
-    addSprite(spriteDef, sprite);
+  for (size_t i = 0; i < def.sprites.size(); ++i) {
+    Sprite& sprite = store.getSprite(def.sprites[i].name.sliceView());
+    addSprite(def.sprites[i], sprite);
   }
   name = def.name;
   loop = def.loop;
@@ -61,7 +65,7 @@ bool Animation::isInitialized() const {
 
 const Sprite& Animation::getCurrentSprite() const {
   if (spriteIndex < static_cast<int>(storedSprites.size())) {
-    return storedSprites[spriteIndex];
+    return storedSprites[static_cast<size_t>(spriteIndex)];
   } else {
     LOG_LINE(ERROR) << "Cannot get current sprite because spriteIndex is out "
                        "of bounds: "
@@ -75,30 +79,30 @@ const Sprite& Animation::getCurrentSprite() const {
   }
 }
 
-std::string Animation::toString() const {
-  const std::string spriteName = getCurrentSprite().name;
+bmin::String Animation::toString() const {
+  const bmin::String spriteName = getCurrentSprite().name;
   return name + " " + spriteName;
 }
 
 void Animation::addSprite(const AnimSpriteDefinition& def,
                           const Sprite& sprite) {
-  spriteDefinitions.push_back(def);
-  storedSprites.push_back(sprite);
+  spriteDefinitions.pushBack(def);
+  storedSprites.pushBack(sprite);
   totalDuration += def.duration;
 }
 
 int Animation::getAnimIndex() const {
-  const unsigned int numSprites = spriteDefinitions.size();
+  const size_t numSprites = spriteDefinitions.size();
   if (numSprites > 0) {
-    unsigned int offsetDuration = t;
+    unsigned int offsetDuration = static_cast<unsigned int>(t);
     unsigned int currentDuration = 0;
-    for (unsigned int i = 0; i < numSprites; i++) {
-      currentDuration += spriteDefinitions[i].duration;
+    for (size_t i = 0; i < numSprites; i++) {
+      currentDuration += static_cast<unsigned int>(spriteDefinitions[i].duration);
       if (offsetDuration < currentDuration) {
-        return i;
+        return static_cast<int>(i);
       }
     }
-    return numSprites - 1;
+    return static_cast<int>(numSprites - 1);
   } else {
     return 0;
   }
@@ -123,10 +127,13 @@ void Animation::update(int dt) {
 
 AnimationDefinition::AnimationDefinition(std::string_view nameA,
                                          const bool loopA)
-    : name(nameA), loop(loopA) {}
+    : name(nameA.data(), nameA.size()), loop(loopA) {}
 
 void AnimationDefinition::addSprite(std::string_view spriteName, int ms) {
-  sprites.push_back(AnimSpriteDefinition{std::string(spriteName), ms});
+  AnimSpriteDefinition def;
+  def.name = bmin::String(spriteName.data(), spriteName.size());
+  def.duration = ms;
+  sprites.pushBack(def);
 }
 
 } // namespace sdl2w

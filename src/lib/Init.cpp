@@ -1,26 +1,28 @@
 #include "Init.h"
 #include "L10n.h"
 #include "Logger.h"
-#include <string>
-#include <vector>
+#include <bmin/DynArray.h>
+#include <bmin/String.h>
 
 namespace sdl2w {
 
 void setLanguage(int argc, char* argv[]) {
-  std::string langArg = "en";
+  bmin::String langArg = "en";
   for (int i = 1; i < argc; i++) {
-    std::string arg = argv[i];
+    bmin::String arg = argv[i];
     if (arg == "--language" && (i + 1) < argc) {
       langArg = argv[++i];
     }
   }
-  sdl2w::L10n::setLanguage(langArg);
+  sdl2w::L10n::setLanguage(langArg.sliceView());
 }
 
 void setupStartupArgs(int argc, char* argv[], sdl2w::Window& window) {
-  window.getStore().loadAndStoreFont(std::string(SPLASH_FONT_NAME),
-                                     "assets/" + std::string(SPLASH_FONT_NAME) +
-                                         ".ttf");
+  window.getStore().loadAndStoreFont(
+      SPLASH_FONT_NAME,
+      (bmin::String("assets/") +
+       bmin::String(SPLASH_FONT_NAME.data(), SPLASH_FONT_NAME.size()) + ".ttf")
+          .sliceView());
 #ifndef __EMSCRIPTEN__
   sdl2w::Logger::setLogToFile(true);
 #endif
@@ -28,36 +30,38 @@ void setupStartupArgs(int argc, char* argv[], sdl2w::Window& window) {
 }
 
 void renderSplash(sdl2w::Window& window) {
-  // asci "mini" font
-  std::vector<std::string> lines = {
-      "                                   _(_)_ ",
-      "                                  (_)@(_)",
-      "                                    (_)  ",
-      "_                                    |   ",
-      "|_)  _     o ._ _|_      _. | o _  (\\|/) ",
-      "| \\ (/_ \\/ | |   |_ |_| (_| | | _>  \\|/  ",
-      "^^^ ^^^^^^ ^^ ^^^^ ^^^  ^^^^^^ ^^^ ^^^^^^ ",
-  };
+  bmin::DynArray<bmin::String> lines;
+  lines.pushBack("                                   _(_)_ ");
+  lines.pushBack("                                  (_)@(_)");
+  lines.pushBack("                                    (_)  ");
+  lines.pushBack("_                                    |   ");
+  lines.pushBack("|_)  _     o ._ _|_      _. | o _  (\\|/) ");
+  lines.pushBack("| \\ (/_ \\/ | |   |_ |_| (_| | | _>  \\|/  ");
+  lines.pushBack("^^^ ^^^^^^ ^^ ^^^^ ^^^  ^^^^^^ ^^^ ^^^^^^ ");
 
   auto& d = window.getDraw();
   auto [windowWidth, windowHeight] = d.getRenderSize();
   const int x = (windowWidth / 2.f);
   const int y = (windowHeight / 2.f);
   d.setBackgroundColor({16, 30, 41});
-  for (int i = 0; i < static_cast<int>(lines.size()); i++) {
-    d.drawText(lines[i],
+  for (size_t i = 0; i < lines.size(); i++) {
+    d.drawText(lines[i].sliceView(),
                {
-                   .fontName = std::string(SPLASH_FONT_NAME),
+                   .fontName =
+                       bmin::String(SPLASH_FONT_NAME.data(),
+                                    SPLASH_FONT_NAME.size()),
                    .fontSize = sdl2w::TextSize::TEXT_SIZE_16,
                    .x = x,
-                   .y = y + i * 20 - 100,
+                   .y = y + static_cast<int>(i) * 20 - 100,
                    .color = {244, 126, 27},
                    .centered = true,
                });
   }
   d.drawText("Have fun!",
              {
-                 .fontName = std::string(SPLASH_FONT_NAME),
+                 .fontName =
+                     bmin::String(SPLASH_FONT_NAME.data(),
+                                  SPLASH_FONT_NAME.size()),
                  .fontSize = sdl2w::TextSize::TEXT_SIZE_24,
                  .x = x,
                  .y = y + 50,

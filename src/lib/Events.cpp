@@ -34,25 +34,25 @@ Events::Events() {
 Events::~Events() {}
 
 bool Events::isKeyPressed(std::string_view name) const {
-  const std::string nameStr(name);
-  const auto it = keys.find(nameStr);
+  const bmin::String nameStr(name.data(), name.size());
+  auto it = const_cast<bmin::Map<bmin::String, bool>&>(keys).find(nameStr);
   if (it == keys.end()) {
     return false;
   }
-  return it->second;
+  return (*it).value;
 }
 
 bool Events::isCtrl() const {
   return isKeyPressed("Left Ctrl") || isKeyPressed("Right Ctrl");
 }
 
-void Events::pushRoute() { routes.push(std::make_unique<EventRoute>()); }
+void Events::pushRoute() { routes.pushBack(bmin::makeUnique<EventRoute>()); }
 void Events::pushRouteNextTick() { shouldPushRoute = true; }
 void Events::popRoute() {
   if (routes.size() >= 2) {
-    routes.pop();
+    routes.popBack();
   } else if (routes.size() == 1) {
-    routes.pop();
+    routes.popBack();
     pushRoute();
   }
 }
@@ -61,7 +61,7 @@ void Events::popRouteNextTick() { shouldPopRoute = true; }
 
 void Events::setMouseEvent(MouseEventCb mEventCb,
                            std::function<void(int, int, int)> cb) {
-  std::unique_ptr<EventRoute>& route = routes.top();
+  bmin::UniquePtr<EventRoute>& route = currentRoute();
   if (mEventCb == ON_MOUSE_DOWN) {
     route->onmousedown = cb;
   } else if (mEventCb == ON_MOUSE_MOVE) {
@@ -77,7 +77,7 @@ void Events::setMouseEvent(MouseEventCb mEventCb,
 }
 void Events::setKeyboardEvent(KeyboardEventCb kEventCb,
                               std::function<void(std::string_view, int)> cb) {
-  std::unique_ptr<EventRoute>& route = routes.top();
+  bmin::UniquePtr<EventRoute>& route = currentRoute();
   if (kEventCb == ON_KEY_DOWN) {
     route->onkeydown = cb;
   } else if (kEventCb == ON_KEY_UP) {
@@ -91,7 +91,7 @@ void Events::setKeyboardEvent(KeyboardEventCb kEventCb,
 }
 
 void Events::mousedown(int x, int y, int button) {
-  std::unique_ptr<EventRoute>& route = routes.top();
+  bmin::UniquePtr<EventRoute>& route = currentRoute();
   if (button == SDL_BUTTON_LEFT) {
     mouseDownX = x;
     mouseDownY = y;
@@ -106,7 +106,7 @@ void Events::mousedown(int x, int y, int button) {
   }
 }
 void Events::mouseup(int x, int y, int button) {
-  std::unique_ptr<EventRoute>& route = routes.top();
+  bmin::UniquePtr<EventRoute>& route = currentRoute();
   if (button == SDL_BUTTON_LEFT) {
     route->onmouseup(x, y, button);
     isMouseDown = false;
@@ -119,13 +119,13 @@ void Events::mouseup(int x, int y, int button) {
   }
 }
 void Events::mousemove(int x, int y) {
-  std::unique_ptr<EventRoute>& route = routes.top();
+  bmin::UniquePtr<EventRoute>& route = currentRoute();
   mouseX = x;
   mouseY = y;
   route->onmousemove(x, y, 0);
 }
 void Events::mousewheel(int x, int y, int dir) {
-  std::unique_ptr<EventRoute>& route = routes.top();
+  bmin::UniquePtr<EventRoute>& route = currentRoute();
   route->onmousewheel(x, y, dir);
   wheel = dir;
   if (dir > 0) {
@@ -135,20 +135,20 @@ void Events::mousewheel(int x, int y, int dir) {
   }
 }
 void Events::keydown(int key) {
-  std::unique_ptr<EventRoute>& route = routes.top();
-  const std::string k = std::string(SDL_GetKeyName(key));
-  if (!keys[k]) {
+  bmin::UniquePtr<EventRoute>& route = currentRoute();
+  const bmin::String k(SDL_GetKeyName(key));
+  if (!keys.contains(k) || !keys[k]) {
     keys[k] = true;
-    route->onkeydown(k, key);
+    route->onkeydown(k.sliceView(), key);
   }
-  route->onkeypress(k, key);
+  route->onkeypress(k.sliceView(), key);
 }
 void Events::keyup(int key) {
-  std::unique_ptr<EventRoute>& route = routes.top();
-  const std::string k = std::string(SDL_GetKeyName(key));
+  bmin::UniquePtr<EventRoute>& route = currentRoute();
+  const bmin::String k(SDL_GetKeyName(key));
   keys[k] = false;
 
-  route->onkeyup(k, key);
+  route->onkeyup(k.sliceView(), key);
 }
 
 void Events::handleEvent(SDL_Event e) { cb(e); }
