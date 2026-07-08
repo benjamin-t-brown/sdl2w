@@ -337,9 +337,9 @@ void AssetLoader::loadSpriteAssetsFromFile(std::string_view path) {
         // LOG_LINE(DEBUG) << "Loading spriteList: " << arr[1] <<
         // Logger::endl;
         const bmin::String& name = arr[1];
-        const int nVal = arr[2].parseInt();
-        const int wVal = arr[3].parseInt();
-        const int hVal = arr[4].parseInt();
+        const int nVal = bmin::parseInt(arr[2]);
+        const int wVal = bmin::parseInt(arr[3]);
+        const int hVal = bmin::parseInt(arr[4]);
         const int n = nVal + lastSpriteInd;
         loadSpriteSheet(lastPicture.cStr(), name.cStr(), lastSpriteInd, n,
                         wVal, hVal);
@@ -351,10 +351,10 @@ void AssetLoader::loadSpriteAssetsFromFile(std::string_view path) {
         Sprite& spriteImage = store.getSprite(lastPicture.sliceView());
 
         const bmin::String& name = arr[1];
-        const int x = arr[2].parseInt();
-        const int y = arr[3].parseInt();
-        const int wVal = arr[4].parseInt();
-        const int hVal = arr[5].parseInt();
+        const int x = bmin::parseInt(arr[2]);
+        const int y = bmin::parseInt(arr[3]);
+        const int wVal = bmin::parseInt(arr[4]);
+        const int hVal = bmin::parseInt(arr[5]);
         spriteNameToPictureAlias[name] = lastPicture;
         loadSprite(name.cStr(),
                    spriteImage.renderable.tex,
@@ -411,10 +411,10 @@ void AssetLoader::loadAnimationAssetsFromFile(std::string_view path) {
           int frames = 0;
 
           try {
-            if (!strFrames.isInt()) {
+            if (!bmin::isInt(strFrames)) {
               throw std::invalid_argument("invalid frame count");
             }
-            frames = strFrames.parseInt();
+            frames = bmin::parseInt(strFrames);
           } catch (std::exception&) {
             LOG_LINE(ERROR)
                 << "[sdl2w] Failed to load anim sprite for: " << animName
@@ -509,10 +509,10 @@ void AssetLoader::loadAssetFile(std::string_view path) {
         if (!spriteNameStr.empty() && !framesStr.empty() &&
             !currentAnimationName.empty()) {
           try {
-            if (!framesStr.isInt()) {
+            if (!bmin::isInt(framesStr)) {
               throw std::invalid_argument("invalid frame count");
             }
-            const int frames = framesStr.parseInt();
+            const int frames = bmin::parseInt(framesStr);
             AnimationDefinition& animDef =
                 store.getAnimationDefinition(currentAnimationName.sliceView());
             animDef.addSprite(spriteNameStr.cStr(), frames);
@@ -564,12 +564,12 @@ void AssetLoader::loadAssetFile(std::string_view path) {
           const bmin::String heightStr = trim(
               std::string_view(tokens[4].cStr(), tokens[4].size()));
           try {
-            if (!numStr.isInt() || !widthStr.isInt() || !heightStr.isInt()) {
+            if (!bmin::isInt(numStr) || !bmin::isInt(widthStr) || !bmin::isInt(heightStr)) {
               throw std::invalid_argument("invalid number in Sprites line");
             }
-            const int numSprites = numStr.parseInt();
-            const int spriteWidth = widthStr.parseInt();
-            const int spriteHeight = heightStr.parseInt();
+            const int numSprites = bmin::parseInt(numStr);
+            const int spriteWidth = bmin::parseInt(widthStr);
+            const int spriteHeight = bmin::parseInt(heightStr);
 
             if (!nextSpriteIndexForPicture.contains(picName)) {
               LOG(WARN)
