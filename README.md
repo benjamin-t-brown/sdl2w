@@ -2,7 +2,7 @@
 
 SDL2W - SDL2 Wrapper
 
-This is an opinionated C++17 library which wraps SDL2 functionality and includes the following features:
+This is an opinionated C++23 library which wraps SDL2 functionality and includes the following features:
 
 - Window and Renderer creation
   - GPU Mode (hardware-accelerated SDL renderer)
@@ -45,7 +45,7 @@ SDL2_gfx
 
 SDL2W provides a makefile that can build for the following platforms:
 
-- GCC (c++17)
+- GCC (c++23)
   - Windows x86_64
   - Mac x86_64
   - Linux x86_64
@@ -145,7 +145,7 @@ Use:
 Typical example:
 
 ```
-g++ -std=c++17 -I/path/to/sdl2w/include main.cpp \
+g++ -std=c++23 -I/path/to/sdl2w/include main.cpp \
   -L/path/to/sdl2w/lib -lsdl2w \
   -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx \
   -o game
@@ -169,7 +169,7 @@ Typical wasm final link options include:
 Example:
 
 ```
-em++ -std=c++17 -Oz -I/path/to/sdl2w/include main.cpp \
+em++ -std=c++23 -Oz -I/path/to/sdl2w/include main.cpp \
   -L/path/to/sdl2w/lib -lsdl2w \
   -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s USE_SDL_MIXER=2 -s USE_SDL_TTF=2 -s USE_SDL_GFX=2 \
   -s EXPORTED_FUNCTIONS='["_main"]' \

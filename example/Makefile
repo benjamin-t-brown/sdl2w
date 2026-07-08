@@ -61,12 +61,12 @@ DEBUG = true
 LIBS += -Llib/sdl2w -lsdl2w 
 INCLUDES += -I.
 ifeq ($(TARGET),wasm)
-    FLAGS = -Wall -std=c++17 -Oz
+    FLAGS = -Wall -std=c++23 -Oz
     LIBS += $(EMCC_LIBS) $(EMCC_EXPORTED) --preload-file assets
     EXE_SUFFIX = .js
     CXX = em++
 else
-    FLAGS = -O0 -Wall -std=c++17 -fno-omit-frame-pointer
+    FLAGS = -O0 -Wall -std=c++23 -fno-omit-frame-pointer
     ifndef CXX
         CXX = g++
     endif

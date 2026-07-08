@@ -31,13 +31,13 @@ endif
 DEBUG=true
 ifeq ($(TARGET),wasm)
     INCLUDES= -I.
-    FLAGS = -Wall -std=c++17 -Oz -flto  $(EMCC_SDL_PORTS)
+    FLAGS = -Wall -std=c++23 -Oz -flto  $(EMCC_SDL_PORTS)
     LIBS =
     CXX = em++
     AR = emar
 else
     INCLUDES += -I.
-    FLAGS += -Wall -std=c++17
+    FLAGS += -Wall -std=c++23
     ifeq ($(OS),Windows_NT)
         LIBS += -mconsole -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
     else

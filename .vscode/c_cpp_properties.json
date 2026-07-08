@@ -11,13 +11,13 @@
         "NET_ENABLE_ENET"
       ],
       "cStandard": "c17",
-      "cppStandard": "c++17",
+      "cppStandard": "c++23",
       "intelliSenseMode": "windows-gcc-x64",
       "compilerArgs": [
         "-Wall",
         "-Wextra",
         "-Werror",
-        "-std=c++",
+        "-std=c++23",
         "-Werror",
         "-O0",
         "-I ./src"
