@@ -1,6 +1,6 @@
 #include <string_view>
 
-#include "bmin/String.h"
+#include "lib/sdl2w/bmin/String.h"
 
 #include "lib/sdl2w/Animation.h"
 #include "lib/sdl2w/AssetLoader.h"
@@ -31,8 +31,8 @@ void runProgram(int argc, char** argv) {
   // language/log to file (requires monofonto)
   sdl2w::setupStartupArgs(argc, argv, window);
 
-  // disable translations by setting to "default"
-  // sdl2w::L10n::setLanguage("default");
+  // disable translations by setting to DISABLE_TRANSLATIONS
+  // sdl2w::L10n::setLanguage(DISABLE_TRANSLATIONS);
 
   window.getDraw().setBackgroundColor({0, 0, 145});
 

@@ -24,7 +24,7 @@ namespace sdl2w {
   (sdl2w::L10n::isEnabled()                                                    \
        ? sdl2w::L10n::trans(sdl2w::L10n::hash(text)).cStr()                    \
        : (text))
-#define DEFAULT_LANGUAGE "default"
+#define DISABLE_TRANSLATIONS "default"
 
 class L10n {
   static bmin::String language;

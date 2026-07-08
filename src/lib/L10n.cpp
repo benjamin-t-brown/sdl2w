@@ -16,7 +16,7 @@ void L10n::init(std::initializer_list<std::string_view> langs) {
     return;
   }
 
-  locStrings[bmin::String(DEFAULT_LANGUAGE)] =
+  locStrings[bmin::String(DISABLE_TRANSLATIONS)] =
       bmin::Map<size_t, bmin::String>();
 
   supportedLanguages.clear();
@@ -142,7 +142,7 @@ size_t L10n::hash(std::string_view str) {
   const size_t result = std::hash<std::string_view>{}(str);
 
   bmin::Map<size_t, bmin::String>& defaults =
-      locStrings[bmin::String(DEFAULT_LANGUAGE)];
+      locStrings[bmin::String(DISABLE_TRANSLATIONS)];
   if (!defaults.contains(result)) {
     defaults[result] = bmin::String(str.data(), str.size());
   }
