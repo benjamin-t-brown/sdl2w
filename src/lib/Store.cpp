@@ -144,7 +144,9 @@ void Store::createFontAlias(std::string_view aliasName,
   fontAliases[aliasStr] = toKey(loadedFontName);
 }
 
-void Store::storeSound(std::string_view name, std::string_view path) {
+void Store::storeSound(std::string_view name,
+                       std::string_view path,
+                       float volume) {
   const bmin::String nameStr = toKey(name);
   const bmin::String pathStr(path.data(), path.size());
   if (sounds.contains(nameStr)) {
@@ -152,12 +154,27 @@ void Store::storeSound(std::string_view name, std::string_view path) {
               << "' already exists. '" << name << "'" << Logger::endl;
   }
 
-  sounds[nameStr] = bmin::UniquePtr<Mix_Chunk, SDL_Deleter>(
-      Mix_LoadWAV(pathStr.cStr()));
-  if (!sounds[nameStr]) {
+  float clampedVolume = volume;
+  if (clampedVolume < 0.0f) {
+    clampedVolume = 0.0f;
+  } else if (clampedVolume > 1.0f) {
+    clampedVolume = 1.0f;
+  }
+  if (clampedVolume != volume) {
+    LOG(WARN) << "[sdl2w] WARNING Sound volume for '" << name
+              << "' clamped from " << volume << " to " << clampedVolume
+              << Logger::endl;
+  }
+
+  StoredSound stored;
+  stored.chunk =
+      bmin::UniquePtr<Mix_Chunk, SDL_Deleter>(Mix_LoadWAV(pathStr.cStr()));
+  stored.volume = clampedVolume;
+  if (!stored.chunk) {
     THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Failed to load sound '") +
                         pathStr + "': reason= " + Mix_GetError());
   }
+  sounds[nameStr] = std::move(stored);
 }
 
 void Store::storeMusic(std::string_view name, std::string_view path) {
@@ -243,7 +260,17 @@ Mix_Chunk* Store::getSound(std::string_view name) {
   const bmin::String nameStr = toKey(name);
   auto it = sounds.find(nameStr);
   if (it != sounds.end()) {
-    return (*it).value.get();
+    return (*it).value.chunk.get();
+  }
+  THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Cannot get Sound '") +
+                      nameStr + "' because it has not been loaded.");
+}
+
+float Store::getSoundVolume(std::string_view name) {
+  const bmin::String nameStr = toKey(name);
+  auto it = sounds.find(nameStr);
+  if (it != sounds.end()) {
+    return (*it).value.volume;
   }
   THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Cannot get Sound '") +
                       nameStr + "' because it has not been loaded.");
@@ -308,7 +335,7 @@ void Store::clear() {
       bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>>();
   sprites = bmin::Map<bmin::String, bmin::UniquePtr<Sprite>>();
   anims = bmin::Map<bmin::String, bmin::UniquePtr<AnimationDefinition>>();
-  sounds = bmin::Map<bmin::String, bmin::UniquePtr<Mix_Chunk, SDL_Deleter>>();
+  sounds = bmin::Map<bmin::String, StoredSound>();
   musics = bmin::Map<bmin::String, bmin::UniquePtr<Mix_Music, SDL_Deleter>>();
   fonts = bmin::Map<bmin::String, bmin::UniquePtr<TTF_Font, SDL_Deleter>>();
 }

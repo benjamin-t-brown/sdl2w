@@ -12,6 +12,12 @@
 
 namespace sdl2w {
 
+struct StoredSound {
+  bmin::UniquePtr<Mix_Chunk, SDL_Deleter> chunk;
+  // Per-sound volume multiplier in [0, 1], applied when the sound is played.
+  float volume = 1.0f;
+};
+
 class Store {
 public:
   bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>> textures;
@@ -20,7 +26,7 @@ public:
   bmin::Map<bmin::String, bmin::UniquePtr<Sprite>> sprites;
   bmin::Map<bmin::String, bmin::UniquePtr<AnimationDefinition>> anims;
   bmin::Map<bmin::String, bmin::UniquePtr<TTF_Font, SDL_Deleter>> fonts;
-  bmin::Map<bmin::String, bmin::UniquePtr<Mix_Chunk, SDL_Deleter>> sounds;
+  bmin::Map<bmin::String, StoredSound> sounds;
   bmin::Map<bmin::String, bmin::UniquePtr<Mix_Music, SDL_Deleter>> musics;
 
   bmin::Map<bmin::String, bmin::String> fontAliases;
@@ -36,7 +42,9 @@ public:
   void loadAndStoreFont(std::string_view name, std::string_view path);
   void createFontAlias(std::string_view aliasName,
                        std::string_view loadedFontName);
-  void storeSound(std::string_view name, std::string_view path);
+  void storeSound(std::string_view name,
+                  std::string_view path,
+                  float volume = 1.0f);
   void storeMusic(std::string_view name, std::string_view path);
 
   SDL_Texture* getTexture(std::string_view name);
@@ -47,6 +55,7 @@ public:
   TTF_Font*
   getFont(std::string_view name, const int sz, const bool isOutline = false);
   Mix_Chunk* getSound(std::string_view name);
+  float getSoundVolume(std::string_view name);
   Mix_Music* getMusic(std::string_view name);
   Animation createAnimation(std::string_view name, bool flipped = false);
 

@@ -91,15 +91,16 @@ void Window::playSound(std::string_view name) {
   }
 
   auto sound = store.getSound(name);
+  const float volumeMult = store.getSoundVolume(name);
   const int channel = Mix_PlayChannel(-1, sound, 0);
   if (channel == -1) {
     LOG(WARN) << "[sdl2w] Unable to play sound in channel.  sound=" << name
               << " err=" << SDL_GetError() << Logger::endl;
     return;
   }
-  Mix_Volume(
-      channel,
-      static_cast<int>(double(soundPct) / 100.0 * double(MIX_MAX_VOLUME)));
+  Mix_Volume(channel,
+             static_cast<int>(double(soundPct) / 100.0 * double(volumeMult) *
+                              double(MIX_MAX_VOLUME)));
 }
 
 void Window::playMusic(std::string_view name) {

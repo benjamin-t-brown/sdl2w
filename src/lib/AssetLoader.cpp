@@ -71,6 +71,40 @@ bmin::String readStreamAsString(std::istream& in) {
 
 bool AssetLoader::fsReady = false;
 
+bmin::String AssetLoader::resolveSoundPath(std::string_view path) const {
+  const char* ext = (soundFileMode == SOUND_FILE_OGG) ? ".ogg" : ".wav";
+  const size_t slash = path.find_last_of("/\\");
+  const size_t baseStart =
+      (slash == std::string_view::npos) ? 0 : slash + 1;
+  const size_t dot = path.find_last_of('.');
+
+  if (dot != std::string_view::npos && dot > baseStart) {
+    bmin::String result(path.data(), dot);
+    result.append(ext);
+    return result;
+  }
+
+  bmin::String result(path.data(), path.size());
+  result.append(ext);
+  return result;
+}
+
+bool AssetLoader::tryParseSoundVolume(const bmin::String& token,
+                                      float& outVolume) {
+  if (!bmin::isDouble(token)) {
+    return false;
+  }
+  const double value = bmin::parseDouble(token);
+  float clamped = static_cast<float>(value);
+  if (clamped < 0.0f) {
+    clamped = 0.0f;
+  } else if (clamped > 1.0f) {
+    clamped = 1.0f;
+  }
+  outVolume = clamped;
+  return true;
+}
+
 bmin::String slice(std::string_view str, int start, int end) {
   const int len = static_cast<int>(str.length());
 
@@ -452,9 +486,17 @@ void AssetLoader::loadSoundAssetsFromFile(std::string_view path) {
         split(std::string_view(trimmed.cStr(), trimmed.size()), ",", arr);
         if (arr.size() >= 3) {
           if (arr[0] == "Sound") {
-            store.storeSound(arr[1].cStr(), arr[2].cStr());
+            const bmin::String soundPath = resolveSoundPath(
+                std::string_view(arr[2].cStr(), arr[2].size()));
+            float volume = 1.0f;
+            if (arr.size() >= 4) {
+              tryParseSoundVolume(arr[3], volume);
+            }
+            store.storeSound(arr[1].cStr(), soundPath.cStr(), volume);
           } else if (arr[0] == "Music") {
-            store.storeMusic(arr[1].cStr(), arr[2].cStr());
+            const bmin::String musicPath = resolveSoundPath(
+                std::string_view(arr[2].cStr(), arr[2].size()));
+            store.storeMusic(arr[1].cStr(), musicPath.cStr());
           }
         }
       }
@@ -617,12 +659,21 @@ void AssetLoader::loadAssetFile(std::string_view path) {
                     << Logger::endl;
         }
       } else if (command == "Sound") {
+        // Sound,<alias>,<path>[,<volume 0-1>][,attribution...]
         if (tokens.size() >= 3) {
           const bmin::String alias = trim(
               std::string_view(tokens[1].cStr(), tokens[1].size()));
-          const bmin::String soundPath = trim(
+          const bmin::String trimmedPath = trim(
               std::string_view(tokens[2].cStr(), tokens[2].size()));
-          store.storeSound(alias.cStr(), soundPath.cStr());
+          const bmin::String soundPath = resolveSoundPath(
+              std::string_view(trimmedPath.cStr(), trimmedPath.size()));
+          float volume = 1.0f;
+          if (tokens.size() >= 4) {
+            const bmin::String volumeToken = trim(
+                std::string_view(tokens[3].cStr(), tokens[3].size()));
+            tryParseSoundVolume(volumeToken, volume);
+          }
+          store.storeSound(alias.cStr(), soundPath.cStr(), volume);
         } else {
           LOG(WARN) << "[sdl2w] Malformed Sound asset specified: " << trimmed
                     << Logger::endl;
@@ -631,8 +682,10 @@ void AssetLoader::loadAssetFile(std::string_view path) {
         if (tokens.size() >= 3) {
           const bmin::String alias = trim(
               std::string_view(tokens[1].cStr(), tokens[1].size()));
-          const bmin::String musicPath = trim(
+          const bmin::String trimmedPath = trim(
               std::string_view(tokens[2].cStr(), tokens[2].size()));
+          const bmin::String musicPath = resolveSoundPath(
+              std::string_view(trimmedPath.cStr(), trimmedPath.size()));
           store.storeMusic(alias.cStr(), musicPath.cStr());
         } else {
           LOG(WARN) << "[sdl2w] Malformed Music asset specified: " << trimmed
