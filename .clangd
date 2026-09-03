@@ -1,0 +1,24 @@
+CompileFlags:
+  Add:
+    - -std=c++23
+---
+If:
+  PathMatch: src/modules/.*
+CompileFlags:
+  Add:
+    - -Isrc/modules
+    - -Isrc/bmin/modules
+---
+If:
+  PathMatch: src/tools/.*
+CompileFlags:
+  Add:
+    - -Isrc/modules
+    - -Isrc/bmin/modules
+---
+If:
+  PathMatch: example/.*
+CompileFlags:
+  Add:
+    - -Isrc/modules
+    - -Isrc/bmin/modules

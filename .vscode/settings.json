@@ -26,6 +26,7 @@
     "WINDOWEVENT"
   ],
   "files.associations": {
+    "*.cppm": "cpp",
     "*.js": "javascript",
     "*.jsx": "javascriptreact",
     "*.ts": "typescript",
@@ -138,9 +139,11 @@
   },
   "C_Cpp.intelliSenseEngine": "disabled",
   "clangd.arguments": [
-    "-log=verbose",
+    "--experimental-modules-support",
+    "--query-driver=C:/msys64/ucrt64/bin/clang++.exe,C:/msys64/ucrt64/bin/g++.exe,/ucrt64/bin/clang++.exe,/ucrt64/bin/g++.exe",
+    "--compile-commands-dir=${workspaceFolder}",
     "--background-index",
-    "-pretty",
-    "--compile-commands-dir=${workspaceFolder}"
-  ]
+    "--log=verbose"
+  ],
+  "clangd.checkUpdates": false,
 }

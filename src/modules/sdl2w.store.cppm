@@ -1,13 +1,7 @@
-#include "Store.h"
-#include "Animation.h"
-#include "Defines.h"
-#include "Draw.h"
-#include "Logger.h"
-#include "bmin/DynArray.h"
-#include "bmin/String.h"
-#include <algorithm>
+module;
 #include <string_view>
 
+#include "impl_headers.h"
 #if __has_include(<SDL.h>)
 #include <SDL.h>
 #include <SDL_audio.h>
@@ -24,49 +18,78 @@
 #include <SDL2/SDL_ttf.h>
 #endif
 
+#include "macros.h"
+
+export module sdl2w.store;
+export import sdl2w.animation;
+export import sdl2w.defines;
+export import sdl2w.types;
+export import bmin.containers;
+import sdl2w.logger;
+import bmin.string_interop;
+
+export namespace sdl2w {
+
+struct StoredSound {
+  bmin::UniquePtr<Mix_Chunk, SDL_Deleter> chunk;
+  float volume = 1.0f;
+};
+
+class Store {
+public:
+  bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>> textures;
+  bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>>
+      dynamicTextures;
+  bmin::Map<bmin::String, bmin::UniquePtr<Sprite>> sprites;
+  bmin::Map<bmin::String, bmin::UniquePtr<AnimationDefinition>> anims;
+  bmin::Map<bmin::String, bmin::UniquePtr<TTF_Font, SDL_Deleter>> fonts;
+  bmin::Map<bmin::String, StoredSound> sounds;
+  bmin::Map<bmin::String, bmin::UniquePtr<Mix_Music, SDL_Deleter>> musics;
+
+  bmin::Map<bmin::String, bmin::String> fontAliases;
+  AnimationDefinition defaultAnimDef = AnimationDefinition("default", false);
+
+  Store() {}
+
+  void storeTexture(std::string_view name, SDL_Texture* tex);
+  void storeDynamicTexture(std::string_view name, SDL_Texture* tex);
+  void storeSprite(std::string_view name, Sprite* sprite);
+  AnimationDefinition& storeAnimationDefinition(std::string_view name,
+                                                const bool loop);
+  void loadAndStoreFont(std::string_view name, std::string_view path);
+  void createFontAlias(std::string_view aliasName,
+                       std::string_view loadedFontName);
+  void storeSound(std::string_view name,
+                  std::string_view path,
+                  float volume = 1.0f);
+  void storeMusic(std::string_view name, std::string_view path);
+
+  SDL_Texture* getTexture(std::string_view name);
+  SDL_Texture* getDynamicTexture(std::string_view name);
+  SDL_Texture* getTextTexture(std::string_view name);
+  Sprite& getSprite(std::string_view name);
+  AnimationDefinition& getAnimationDefinition(std::string_view name);
+  TTF_Font*
+  getFont(std::string_view name, const int sz, const bool isOutline = false);
+  Mix_Chunk* getSound(std::string_view name);
+  float getSoundVolume(std::string_view name);
+  Mix_Music* getMusic(std::string_view name);
+  Animation createAnimation(std::string_view name, bool flipped = false);
+
+  bool hasDynamicTexture(std::string_view name);
+
+  void logAllSprites();
+  void logAllAnimationDefinitions();
+
+  void clear();
+};
+
+}
+
 namespace sdl2w {
 
 static bmin::String toKey(std::string_view sv) {
   return bmin::String(sv.data(), sv.size());
-}
-
-void SDL_Deleter::operator()(SDL_Window* p) const {
-  if (p != nullptr) {
-    SDL_DestroyWindow(p);
-  }
-}
-void SDL_Deleter::operator()(SDL_Renderer* p) const {
-  if (p != nullptr) {
-    SDL_DestroyRenderer(p);
-  }
-}
-void SDL_Deleter::operator()(SDL_Texture* p) const {
-  if (p != nullptr) {
-    SDL_DestroyTexture(p);
-  }
-}
-void SDL_Deleter::operator()(SDL_Surface* p) const {
-  if (p != nullptr) {
-    SDL_FreeSurface(p);
-  }
-}
-void SDL_Deleter::operator()(TTF_Font* p) const {
-  if (p != nullptr) {
-    TTF_CloseFont(p);
-  }
-}
-void SDL_Deleter::operator()(Mix_Chunk* p) const {
-  if (p != nullptr) {
-    Mix_FreeChunk(p);
-  }
-}
-void SDL_Deleter::operator()(Mix_Music* p) const {
-  if (p != nullptr) {
-    Mix_FreeMusic(p);
-  }
-}
-void SDL_Deleter::operator()(SDL_Joystick* p) const {
-  (void)p;
 }
 
 void Store::storeTexture(std::string_view name, SDL_Texture* tex) {
@@ -339,4 +362,5 @@ void Store::clear() {
   musics = bmin::Map<bmin::String, bmin::UniquePtr<Mix_Music, SDL_Deleter>>();
   fonts = bmin::Map<bmin::String, bmin::UniquePtr<TTF_Font, SDL_Deleter>>();
 }
-} // namespace sdl2w
+
+}

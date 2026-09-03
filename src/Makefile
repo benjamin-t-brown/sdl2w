@@ -1,96 +1,24 @@
-CODE=\
-lib/Window.cpp\
-lib/Draw.cpp\
-lib/Logger.cpp\
-lib/Store.cpp\
-lib/AssetLoader.cpp\
-lib/Events.cpp\
-lib/Animation.cpp\
-lib/L10n.cpp\
-lib/Init.cpp\
-lib/EmscriptenHelpers.cpp
+# sdl2w is C++ modules only. Native: GCC + -fmodules-ts.
+# Wasm: em++ (Clang PCMs) via make wasm / example make js.
 
 TARGET ?= native
 .DEFAULT_GOAL := native
-BASE_BUILD_DIR = build
 
 BMIN_URL ?= https://github.com/benjamin-t-brown/bmin.git
-BMIN_REF ?= main
+BMIN_REF ?= experiment/cpp-modules
 BMIN_REPO ?= ../bmin
 BMIN_SRC = $(BMIN_REPO)/src
 BMIN_BUILD_OUT = $(BMIN_REPO)/bmin
-BMIN_BUILT_LIB = $(BMIN_BUILD_OUT)/lib/libbmin.a
-BMIN_BUILT_INCLUDE = $(BMIN_BUILD_OUT)/include
+BMIN_BUILT_MODULES_LIB = $(BMIN_BUILD_OUT)/lib/libbmin_modules.a
+BMIN_BUILT_MODULES = $(BMIN_BUILD_OUT)/modules
+
 DEPS_DIR = .
-DEPS_BMIN_LIB = $(DEPS_DIR)/bmin/libbmin.a
-DEPS_BMIN_INCLUDE_MARKER = $(DEPS_DIR)/bmin/String.h
+DEPS_BMIN_MODULES_LIB = $(DEPS_DIR)/bmin/libbmin_modules.a
+DEPS_BMIN_MODULES_MARKER = $(DEPS_DIR)/bmin/modules/bmin.containers.cppm
 
-EMCC_SDL_PORTS=\
--s USE_SDL=2\
--s USE_SDL_IMAGE=2\
--s USE_SDL_MIXER=2\
--s SDL2_IMAGE_FORMATS='["png"]'\
--s USE_SDL_TTF=2\
--s USE_SDL_GFX=2
-
-# On Windows, parallel make + g++ can emit \r and interleave output, showing as garbage (♪◙). Use V=1 to see full commands.
-ifeq ($(V),1)
-  Q =
-else
-  Q = @
-endif
-
-DEBUG=true
-ifeq ($(TARGET),wasm)
-    INCLUDES= -I.
-    FLAGS = -Wall -std=c++23 -Oz -flto  $(EMCC_SDL_PORTS)
-    LIBS = $(DEPS_BMIN_LIB)
-    CXX = em++
-    AR = emar
-else
-    INCLUDES += -I.
-    FLAGS += -Wall -std=c++23
-    LIBS += -L$(DEPS_DIR)/bmin -lbmin
-    ifeq ($(OS),Windows_NT)
-        LIBS += -mconsole -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
-    else
-        UNAME_S := $(shell uname -s)
-        ifeq ($(UNAME_S),Darwin)
-            LIBS += -L/opt/homebrew/lib -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
-            INCLUDES += -I/opt/homebrew/include -I/usr/local/include
-        else
-            LIBS += -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
-        endif
-    endif
-    ifeq ($(DEBUG),true)
-        FLAGS += -g
-    endif
-endif
-TARGET_SUFFIX = $(TARGET)
-
-OBJ_OUTPUT_DIR = $(BASE_BUILD_DIR)/obj
-LIB_OUTPUT_DIR = $(BASE_BUILD_DIR)/lib
-BIN_OUTPUT_DIR = $(BASE_BUILD_DIR)/bin
-TOOLS_OUTPUT_DIR = $(BASE_BUILD_DIR)/tools
 INSTALL_DIR = ../sdl2w
 
-DIRS_TO_CREATE = $(OBJ_OUTPUT_DIR) $(TOOLS_OUTPUT_DIR) $(LIB_OUTPUT_DIR) $(BIN_OUTPUT_DIR)
-
-OBJECTS = $(patsubst %.cpp,$(OBJ_OUTPUT_DIR)/%.o,$(CODE))
-DEPENDS = $(patsubst %.cpp,$(OBJ_OUTPUT_DIR)/%.d,$(CODE))
-
-LIB_SDL2W = $(LIB_OUTPUT_DIR)/libsdl2w.a
-
-HEADER_SRC_DIR = lib
-
-# Per-TU compile timing: make ftime-report
-# Windows: C:/progs/msys2/msys2_shell.cmd -defterm -here -no-start -ucrt64 -use-full-path -c "cd .../sdl2w/src && make ftime-report"
-FTIME_REPORT ?= 0
-ifeq ($(FTIME_REPORT),1)
-  FLAGS += -ftime-report
-endif
-
-.PHONY: all native wasm dist tools clean clean-deps ftime-report bmin $(DIRS_TO_CREATE)
+.PHONY: all native wasm dist clean clean-deps bmin modules tools
 
 $(BMIN_REPO)/.git:
 	@mkdir -p $(dir $(BMIN_REPO))
@@ -99,74 +27,59 @@ $(BMIN_REPO)/.git:
 		git clone --depth 1 --branch $(BMIN_REF) $(BMIN_URL) $(BMIN_REPO); \
 	fi
 
-$(BMIN_BUILT_LIB): $(BMIN_REPO)/.git
-	@echo "Building bmin for $(TARGET)..."
+$(BMIN_BUILT_MODULES_LIB): $(BMIN_REPO)/.git
+	@echo "Building bmin modules for $(TARGET)..."
 	@$(MAKE) -C $(BMIN_SRC) all TARGET=$(TARGET)
 
-$(DEPS_BMIN_INCLUDE_MARKER): $(BMIN_BUILT_LIB) $(wildcard $(BMIN_BUILT_INCLUDE)/* $(BMIN_BUILT_INCLUDE)/internal/*)
-	@mkdir -p $(DEPS_DIR)/bmin
-	@cp -R $(BMIN_BUILT_INCLUDE)/* $(DEPS_DIR)/bmin/
-	@cp $(BMIN_BUILT_LIB) $(DEPS_DIR)/bmin/
+$(DEPS_BMIN_MODULES_MARKER):
+	@if [ ! -f "$(BMIN_BUILT_MODULES_LIB)" ]; then \
+		$(MAKE) $(BMIN_BUILT_MODULES_LIB); \
+	fi
+	@if [ ! -f "$(BMIN_BUILT_MODULES_LIB)" ]; then \
+		echo "error: $(BMIN_BUILT_MODULES_LIB) not found after bmin build" >&2; \
+		exit 1; \
+	fi
+	@mkdir -p $(DEPS_DIR)/bmin/modules/make
+	@cp $(BMIN_BUILT_MODULES_LIB) $(DEPS_DIR)/bmin/
+	@cp -R $(BMIN_BUILT_MODULES)/* $(DEPS_DIR)/bmin/modules/
 
-bmin: $(DEPS_BMIN_INCLUDE_MARKER)
-
-$(OBJECTS): | $(DEPS_BMIN_INCLUDE_MARKER)
+bmin: $(DEPS_BMIN_MODULES_MARKER)
 
 native:
 	@$(MAKE) all TARGET=native
 
-wasm:
-	@$(MAKE) all TARGET=wasm
+wasm: $(DEPS_BMIN_MODULES_MARKER)
+	@$(MAKE) -C modules lib TARGET=wasm
+	@mkdir -p $(INSTALL_DIR)/lib/wasm
+	@cp -f modules/build-wasm/libsdl2w_modules.a $(INSTALL_DIR)/lib/wasm/
+	@cp -f modules/build-wasm/libbmin_modules.a $(INSTALL_DIR)/lib/wasm/
+	@$(MAKE) -C modules install-files
+	@echo "Created wasm sdl2w archives at $(INSTALL_DIR)/lib/wasm"
 
-files:
-	@echo $(CODE)
+modules:
+	@$(MAKE) -C modules all
 
-ftime-report:
-	@bash ftime-report.sh
+tools: $(DEPS_BMIN_MODULES_MARKER)
+	@$(MAKE) -C modules lib
+	@$(MAKE) -C tools
 
 all: dist
 
-$(DIRS_TO_CREATE):
-	@mkdir -p $@
-
-$(LIB_SDL2W): $(OBJECTS) | $(LIB_OUTPUT_DIR)
-	$(AR) rcs $@ $(OBJECTS)
-
-dist: $(LIB_SDL2W) $(DEPS_BMIN_INCLUDE_MARKER)
-	@echo "Creating library and headers for $(TARGET) at $(INSTALL_DIR)"
+dist: $(DEPS_BMIN_MODULES_MARKER)
+	@$(MAKE) -C modules install
+	@rm -rf $(INSTALL_DIR)/include
+	@rm -f $(INSTALL_DIR)/lib/libsdl2w.a $(INSTALL_DIR)/lib/libbmin.a
 	@mkdir -p $(INSTALL_DIR)/lib
-	@mkdir -p $(INSTALL_DIR)/include
-	@mkdir -p $(INSTALL_DIR)/include/bmin
-	@cp $(LIB_SDL2W) $(INSTALL_DIR)/lib
-	@cp $(DEPS_BMIN_LIB) $(INSTALL_DIR)/lib/libbmin.a
-	@echo "Copying header files from $(HEADER_SRC_DIR) to $(INSTALL_DIR)/include"
-	cp -f $(HEADER_SRC_DIR)/*.h $(INSTALL_DIR)/include
-	@cp -R $(DEPS_DIR)/bmin/* $(INSTALL_DIR)/include/bmin/
-	@echo "Created $(TARGET) sdl2w folder at top level directory."
-
-tools: $(LIB_SDL2W) L10nScanner Anims
-	mv Anims* build/tools/
-	mv L10nScanner* build/tools/
-
-Anims: tools/Anims.cpp $(ALL_CLIENT_OBJECTS)
-	$(CXX) $(FLAGS) $(INCLUDES) $(OBJECTS) $< $(filter %.o,$^) -o $@ $(LIBS) 
-
-L10nScanner: tools/L10nScanner.cpp | $(DEPS_BMIN_INCLUDE_MARKER)
-	$(CXX) $(FLAGS) $(INCLUDES) $< -o $@ $(LIBS)
-
--include $(DEPENDS)
-
-$(OBJ_OUTPUT_DIR)/%.o: %.cpp | $(DIRS_TO_CREATE)
-	@mkdir -p $(@D)
-	$(CXX) $(FLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
+	@cp $(DEPS_BMIN_MODULES_LIB) $(INSTALL_DIR)/lib/libbmin_modules.a
+	@mkdir -p $(INSTALL_DIR)/modules/bmin/make
+	@cp -R $(DEPS_DIR)/bmin/modules/* $(INSTALL_DIR)/modules/bmin/
+	@echo "Created modules-only sdl2w bundle at $(INSTALL_DIR)"
 
 clean:
-	@echo "Cleaning for all targets..."
-	rm -rf $(BASE_BUILD_DIR)
+	@echo "Cleaning..."
 	rm -rf $(DEPS_DIR)/bmin
-	rm -f libsdl2w.a Anims Anims.exe L10nScanner L10nScanner.exe
 	rm -rf ../sdl2w
-	rm -rf main.d
+	@if [ -f modules/Makefile ]; then $(MAKE) -C modules clean; fi
 	@if [ -f "$(BMIN_SRC)/Makefile" ]; then $(MAKE) -C $(BMIN_SRC) clean; fi
 
 clean-deps: clean

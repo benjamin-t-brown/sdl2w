@@ -2,20 +2,28 @@
 // what SDL2W parsed from the asset file and shows every animation and sprite
 // that was loaded.
 
-#include "../lib/Animation.h"
-#include "../lib/AssetLoader.h"
-#include "../lib/Defines.h"
-#include "../lib/Draw.h"
-#include "../lib/Logger.h"
-#include "../lib/Window.h"
 #include <SDL2/SDL_rect.h>
 #include <algorithm>
+#include <cctype>
+#include <exception>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
+
+import sdl2w;
+import bmin.string_interop;
+
+#include "macros.h"
 
 using namespace sdl2w;
+
+static std::string toStd(const bmin::String& s) {
+  return std::string(bmin::toStringView(s));
+}
 
 enum UiState { UI_SELECT_ASSET, UI_SHOW_ANIMS };
 enum AssetBrowserTab { TAB_PICTURES, TAB_SOUNDS };
@@ -53,8 +61,8 @@ void reloadAssets(AssetLoader& assetLoader,
       "default",
       "assets/monofonto.ttf"); // Assuming monofonto.ttf is still at a fixed
                                // relative path or handled differently
-  assetLoader.picturePathToAlias.clear();
-  assetLoader.spriteNameToPictureAlias.clear();
+  assetLoader.picturePathToAlias = {};
+  assetLoader.spriteNameToPictureAlias = {};
 
   if (!assetLoadConfig.assetFilePath.empty()) {
     assetLoader.loadAssetsFromFile(sdl2w::ASSET_FILE,
@@ -338,17 +346,17 @@ getSpriteNamesForPicture(AssetLoader& assetLoader,
 
   for (const auto& [loadedPathStr, loadedAlias] :
        assetLoader.picturePathToAlias) {
-    const auto loadedPath = std::filesystem::path(loadedPathStr);
+    const auto loadedPath = std::filesystem::path(toStd(loadedPathStr));
     const std::string loadedNorm = normalizePath(loadedPath);
 
     if (!selectedAssetRelativeNorm.empty() &&
         loadedNorm == selectedAssetRelativeNorm) {
-      pictureAlias = loadedAlias;
+      pictureAlias = toStd(loadedAlias);
       break;
     }
 
     if (loadedNorm == selectedNorm) {
-      pictureAlias = loadedAlias;
+      pictureAlias = toStd(loadedAlias);
       break;
     }
 
@@ -356,7 +364,7 @@ getSpriteNamesForPicture(AssetLoader& assetLoader,
     // UI list provides absolute paths; match by filename and, when available,
     // by canonical path equality.
     if (loadedPath.filename().string() == selectedFileName) {
-      pictureAlias = loadedAlias;
+      pictureAlias = toStd(loadedAlias);
       break;
     }
 
@@ -364,7 +372,7 @@ getSpriteNamesForPicture(AssetLoader& assetLoader,
       if (std::filesystem::exists(selectedPath) &&
           std::filesystem::exists(loadedPath) &&
           std::filesystem::equivalent(selectedPath, loadedPath)) {
-        pictureAlias = loadedAlias;
+        pictureAlias = toStd(loadedAlias);
         break;
       }
     } catch (const std::exception&) {
@@ -381,7 +389,7 @@ getSpriteNamesForPicture(AssetLoader& assetLoader,
   for (const auto& [spriteName, spritePictureAlias] :
        assetLoader.spriteNameToPictureAlias) {
     if (spritePictureAlias == pictureAlias) {
-      spriteNames.push_back(spriteName);
+      spriteNames.push_back(toStd(spriteName));
     }
   }
   std::sort(spriteNames.begin(), spriteNames.end(), naturalComparator);
@@ -393,7 +401,7 @@ std::vector<AnimationDefinition> getAnimationDefinitionsFromSpriteNames(
   std::vector<AnimationDefinition> animationDefinitions;
 
   for (const auto& anim : store.anims) {
-    const auto& animDef = *anim.second;
+    const auto& animDef = *anim.value;
     for (const auto& spriteName : spriteNames) {
       auto it = std::find_if(animDef.sprites.begin(),
                              animDef.sprites.end(),
@@ -484,7 +492,7 @@ void runProgram(int argc,
     state.sounds.clear();
     state.sounds.reserve(store.sounds.size());
     for (const auto& [soundName, sound] : store.sounds) {
-      state.sounds.push_back(soundName);
+      state.sounds.push_back(toStd(soundName));
     }
     std::sort(state.sounds.begin(), state.sounds.end(), naturalComparator);
     applyAssetFilter();
@@ -563,7 +571,7 @@ void runProgram(int argc,
                       store, state.selectedSpriteNames);
               state.selectedAnimNames.clear();
               for (const auto& animDef : state.selectedAnimDefinitions) {
-                state.selectedAnimNames.push_back(animDef.name);
+                state.selectedAnimNames.push_back(toStd(animDef.name));
               }
               std::sort(state.selectedAnimNames.begin(),
                         state.selectedAnimNames.end(),
@@ -621,14 +629,15 @@ void runProgram(int argc,
                 getAnimationDefinitionsFromSpriteNames(
                     store, state.selectedSpriteNames);
             for (const auto& animDef : state.selectedAnimDefinitions) {
-              state.selectedAnimNames.push_back(animDef.name);
+              state.selectedAnimNames.push_back(toStd(animDef.name));
             }
             std::sort(state.selectedAnimNames.begin(),
                       state.selectedAnimNames.end());
             if (state.selectedAnim.has_value()) {
               try {
                 state.selectedAnim =
-                    store.createAnimation(state.selectedAnim.value().name);
+                    store.createAnimation(
+                        bmin::toStringView(state.selectedAnim.value().name));
               } catch (const std::exception& e) {
                 LOG(WARN) << "Resetting animation which was not found: "
                           << e.what() << LOG_ENDL;
@@ -656,8 +665,9 @@ void runProgram(int argc,
                                    });
             if (it != state.selectedAnimDefinitions.end()) {
               auto& animDef = *it;
-              animList.focusValue = animDef.name;
-              state.selectedAnim = store.createAnimation(animDef.name);
+              animList.focusValue = toStd(animDef.name);
+              state.selectedAnim =
+                  store.createAnimation(bmin::toStringView(animDef.name));
             }
           });
           spriteList.handleMouseDown(x, y, [&](const std::string& str) {

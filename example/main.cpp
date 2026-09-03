@@ -1,14 +1,12 @@
+#include <cstdlib>
+#include <ctime>
+#include <exception>
 #include <string_view>
 
-#include "lib/sdl2w/bmin/String.h"
+#include "macros.h" // TRANSLATE (logging is sdl2w::log / endl)
 
-#include "lib/sdl2w/Animation.h"
-#include "lib/sdl2w/AssetLoader.h"
-#include "lib/sdl2w/Draw.h"
-#include "lib/sdl2w/L10n.h"
-#include "lib/sdl2w/Logger.h"
-#include "lib/sdl2w/Init.h"
-#include "lib/sdl2w/Window.h"
+import sdl2w;
+import bmin.string_interop;
 
 void runProgram(int argc, char** argv) {
   const int w = 640;
@@ -60,8 +58,8 @@ void runProgram(int argc, char** argv) {
   bmin::String lastKeyPressed = "";
   window.getEvents().setKeyboardEvent(
       sdl2w::ON_KEY_DOWN, [&](std::string_view key, int button) {
-        LOG(INFO) << "Keyboard down: " << key << " (" << button << ")"
-                  << LOG_ENDL;
+        sdl2w::log(sdl2w::INFO) << "Keyboard down: " << key << " (" << button
+                                << ")" << sdl2w::endl;
         if (key == "Left") {
           kenDirection = 0;
         } else if (key == "Right") {
@@ -93,14 +91,16 @@ void runProgram(int argc, char** argv) {
   };
 
   auto _onLoaded = [&]() {
-    LOG(INFO) << "Init cb" << LOG_ENDL;
+    sdl2w::log(sdl2w::INFO) << "Init cb" << sdl2w::endl;
     try {
       bmin::String localFile = sdl2w::loadFileAsString("localFile.txt");
-      LOG(INFO) << "localFile.txt contents: " << localFile << LOG_ENDL;
+      sdl2w::log(sdl2w::INFO) << "localFile.txt contents: " << localFile
+                              << sdl2w::endl;
       localFile += "a";
       sdl2w::saveFileAsString("localFile.txt", localFile.sliceView());
     } catch (std::exception& e) {
-      LOG(INFO) << "localFile.txt does not exist, so creating it." << LOG_ENDL;
+      sdl2w::log(sdl2w::INFO) << "localFile.txt does not exist, so creating it."
+                              << sdl2w::endl;
       sdl2w::saveFileAsString("localFile.txt", "Hello World!");
     }
   };
@@ -206,14 +206,14 @@ void runProgram(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
-  LOG(INFO) << "Start program" << LOG_ENDL;
+  sdl2w::log(sdl2w::INFO) << "Start program" << sdl2w::endl;
   sdl2w::Window::init();
   srand(time(NULL));
 
   runProgram(argc, argv);
 
   sdl2w::Window::unInit();
-  LOG(INFO) << "End program" << LOG_ENDL;
+  sdl2w::log(sdl2w::INFO) << "End program" << sdl2w::endl;
 
   return 0;
 }

@@ -1,7 +1,61 @@
-#include "Animation.h"
-#include "Draw.h"
-#include "Logger.h"
-#include "Store.h"
+module;
+#include <string_view>
+
+#include "impl_headers.h"
+#include "macros.h"
+
+export module sdl2w.animation;
+export import sdl2w.types;
+export import bmin.containers;
+import sdl2w.logger;
+import bmin.string_interop;
+
+export namespace sdl2w {
+
+struct AnimationDefinition;
+
+struct AnimSpriteDefinition {
+  bmin::String name = "";
+  int duration = 100;
+};
+
+struct Animation {
+  bmin::DynArray<AnimSpriteDefinition> spriteDefinitions;
+  bmin::DynArray<Sprite> storedSprites;
+  bmin::String name;
+  int t;
+  int totalDuration;
+  int spriteIndex;
+  bool loop;
+  bool flipped = false;
+  static bmin::UniquePtr<Sprite> staticDefaultSprite;
+
+  Animation();
+  Animation(std::string_view nameA, const bool loopA);
+  ~Animation();
+  Animation(const Animation& other);
+  Animation& operator=(const Animation& other);
+
+  bool isInitialized() const;
+  const Sprite& getCurrentSprite() const;
+  bmin::String toString() const;
+  void addSprite(const AnimSpriteDefinition& def, const Sprite& sprite);
+  int getAnimIndex() const;
+
+  void start();
+  void update(int dt);
+};
+
+struct AnimationDefinition {
+  bmin::DynArray<AnimSpriteDefinition> sprites;
+  bmin::String name;
+  bool loop;
+  AnimationDefinition(std::string_view nameA, const bool loopA);
+
+  void addSprite(std::string_view spriteName, int ms);
+};
+
+}
 
 namespace sdl2w {
 
@@ -46,16 +100,6 @@ Animation& Animation::operator=(const Animation& other) {
   flipped = other.flipped;
 
   return *this;
-}
-
-Animation::Animation(const AnimationDefinition& def, Store& store)
-    : name(""), t(0), totalDuration(0), spriteIndex(0), loop(true) {
-  for (size_t i = 0; i < def.sprites.size(); ++i) {
-    Sprite& sprite = store.getSprite(def.sprites[i].name.sliceView());
-    addSprite(def.sprites[i], sprite);
-  }
-  name = def.name;
-  loop = def.loop;
 }
 
 Animation::~Animation() {}
@@ -136,4 +180,4 @@ void AnimationDefinition::addSprite(std::string_view spriteName, int ms) {
   sprites.pushBack(def);
 }
 
-} // namespace sdl2w
+}

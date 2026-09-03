@@ -2,11 +2,19 @@
 
 This guide explains how to add [sdl2w](README.md) to a C++23 game project.
 
-sdl2w is a **static library**. Each build also produces a matching **bmin** static library and headers. Your game should copy and use **that bundled bmin** from the sdl2w build so versions stay in sync.
+sdl2w is a **C++ modules** static library (`import sdl2w`). Each build also
+produces a matching **bmin** modules library. Your game should copy and use
+**that bundled bmin** from the sdl2w build so versions stay in sync.
+
+There is no header / `#include "Window.h"` API.
+
+Wasm uses the same modules with em++ (`make TARGET=wasm`). `use.mk` finds
+emsdk at `EMSDK` or a sibling `../emsdk` (for this repo: `progs/emsdk`).
 
 ## Prerequisites
 
-- C++23 compiler (`g++` or `em++` for WebAssembly)
+- GCC with C++23 modules (`g++` + `-fmodules-ts`) for native
+- emsdk / em++ for wasm (`make TARGET=wasm` or `make -C example js`)
 - SDL2 development libraries:
   - SDL2
   - SDL2_image
@@ -24,10 +32,10 @@ You do **not** need a separate bmin checkout in your game if you follow this gui
 # 1. Build sdl2w (from your sdl2w clone/submodule)
 make -C path/to/sdl2w/src native
 
-# 2. Copy libs + headers into your game tree
+# 2. Copy libs + module sources into your game tree
 path/to/sdl2w/copy-sdl2w-artifacts.sh path/to/yourgame/lib/sdl2w
 
-# 3. Compile and link your game (see below)
+# 3. Include use.mk and compile (see below)
 ```
 
 ---
@@ -40,23 +48,17 @@ Clone sdl2w into your workspace (submodule, sibling folder, etc.), then build:
 make -C path/to/sdl2w/src native
 ```
 
-For WebAssembly:
-
-```bash
-make -C path/to/sdl2w/src wasm
-```
-
 This writes a consumer bundle to:
 
 ```
 path/to/sdl2w/sdl2w/
   lib/
-    libsdl2w.a
-    libbmin.a
-  include/
-    Window.h, Draw.h, Store.h, ...
+    libsdl2w_modules.a
+    libbmin_modules.a
+  modules/
+    sdl2w.cppm, macros.h, ...
+    make/use.mk
     bmin/
-      String.h, Map.h, DynArray.h, ...
 ```
 
 The first build also clones and builds bmin inside the sdl2w repo. You do not manage that separately.
@@ -79,98 +81,66 @@ Default destination (if you omit the argument) is `./lib/sdl2w` relative to the 
 
 ```bash
 DEST=path/to/yourgame/lib/sdl2w
-mkdir -p "$DEST/bmin"
+mkdir -p "$DEST/modules"
 
-cp path/to/sdl2w/sdl2w/lib/libsdl2w.a "$DEST/"
-cp path/to/sdl2w/sdl2w/lib/libbmin.a   "$DEST/"
-cp path/to/sdl2w/sdl2w/include/*.h     "$DEST/"
-cp -R path/to/sdl2w/sdl2w/include/bmin/* "$DEST/bmin/"
+cp path/to/sdl2w/sdl2w/lib/libsdl2w_modules.a "$DEST/"
+cp path/to/sdl2w/sdl2w/lib/libbmin_modules.a  "$DEST/"
+cp -R path/to/sdl2w/sdl2w/modules/*           "$DEST/modules/"
 ```
 
 ### Layout after copy
 
 ```
 yourgame/lib/sdl2w/
-  libsdl2w.a
-  libbmin.a
-  Window.h
-  Draw.h
-  Store.h
-  ...
-  bmin/
-    String.h
-    Map.h
-    UniquePtr.h
-    ...
+  libsdl2w_modules.a
+  libbmin_modules.a
+  modules/
+    sdl2w.cppm
+    macros.h
+    make/use.mk
+    bmin/
 ```
 
 Re-run the copy step whenever you update or rebuild sdl2w.
 
 ---
 
-## Step 3 — Compiler and linker flags
+## Step 3 — Makefile
 
-Use **one include directory** and **one library directory**:
+`use.mk` rebuilds BMIs with **your** compiler and sets flags:
 
-| Flag | Value |
-|---|---|
-| Include | `-Ipath/to/yourgame/lib/sdl2w` |
-| Library path | `-Lpath/to/yourgame/lib/sdl2w` |
-| Libraries | `-lsdl2w -lbmin` |
-| Language | `-std=c++23` |
+```makefile
+include path/to/yourgame/lib/sdl2w/modules/make/use.mk
 
-Link **one** `libbmin.a`. Do not also link a bmin built elsewhere.
+main.o: main.cpp sdl2w-bmi
+	$(CXX) $(SDL2W_CXXFLAGS) -c main.cpp -o $@
 
-### Native example (g++)
-
-```bash
-g++ -std=c++23 -Wall \
-  -Ipath/to/yourgame/lib/sdl2w \
-  main.cpp \
-  -Lpath/to/yourgame/lib/sdl2w -lsdl2w -lbmin \
-  -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx \
-  -o yourgame
+yourgame: main.o
+	$(CXX) $(SDL2W_CXXFLAGS) -o $@ main.o $(SDL2W_LDLIBS)
 ```
 
-On macOS you may need extra `-L` paths for Homebrew SDL libraries.
+`SDL2W_CXXFLAGS` includes `-fmodules-ts` and the module `-I` paths.
+`SDL2W_LDLIBS` is `-lsdl2w_modules -lbmin_modules` plus SDL2.
 
-### WebAssembly example (em++)
+Link **one** `libbmin_modules.a`. Do not also link a bmin built elsewhere.
 
-Set Emscripten SDL port flags on the **final** link of your game (not when building the sdl2w archive):
-
-```bash
-em++ -std=c++23 -Oz \
-  -Ipath/to/yourgame/lib/sdl2w \
-  main.cpp \
-  -Lpath/to/yourgame/lib/sdl2w -lsdl2w -lbmin \
-  -s USE_SDL=2 \
-  -s USE_SDL_IMAGE=2 \
-  -s USE_SDL_MIXER=2 \
-  -s USE_SDL_TTF=2 \
-  -s USE_SDL_GFX=2 \
-  --preload-file assets \
-  -o yourgame.js
-```
-
-Add any extra `-s EXPORTED_FUNCTIONS=...`, `-s EXPORTED_RUNTIME_METHODS=...`, or memory settings your app needs.
+The `example/` project follows this pattern.
 
 ---
 
-## Includes in source code
-
-With `-Ipath/to/yourgame/lib/sdl2w`:
+## Imports in source code
 
 ```cpp
-#include <bmin/String.h>
+import sdl2w;
+#include "macros.h"   // TRANSLATE — macros cannot be exported
 
-#include "Window.h"
-#include "Draw.h"
-#include "Store.h"
-#include "AssetLoader.h"
+sdl2w::log(sdl2w::INFO) << "ok" << sdl2w::endl;
+sdl2w::logAt(sdl2w::ERROR) << "failed";
+sdl2w::fail("cannot open font");
+draw.drawText(TRANSLATE("Welcome"), params);
 ```
 
-- sdl2w headers: `#include "Window.h"` (or your preferred layout)
-- bmin headers: `#include <bmin/String.h>` (note the `bmin/` prefix)
+Import `bmin.string_interop` separately for extra `std::string_view` helpers.
 
 Most sdl2w APIs take `std::string_view`, so string literals work without extra conversion:
 
@@ -186,44 +156,19 @@ bmin::String contents = sdl2w::loadFileAsString("save.txt");
 draw.drawText(contents.sliceView(), params);
 ```
 
+Do not `#include` bmin headers in the same program.
+
 ---
 
 ## Using bmin in your game
 
 If your game uses bmin types directly (`bmin::String`, `bmin::Map`, etc.):
 
-1. Include headers from the **copied** tree: `#include <bmin/String.h>`
-2. Link the **copied** `libbmin.a` from sdl2w's build
-3. Do **not** add a second bmin include path or link another `libbmin.a`
+1. `import bmin.containers` (or the bundled modules under `modules/bmin/`)
+2. Link the **copied** `libbmin_modules.a` from sdl2w's build
+3. Do **not** add a second bmin include path or link another bmin library
 
 That keeps `bmin::String` and other types identical across your code and sdl2w.
-
----
-
-## Makefile integration
-
-The `example/` project shows a common pattern:
-
-1. Build sdl2w when needed: `make -C path/to/sdl2w/src native`
-2. Copy artifacts into `lib/sdl2w/`
-3. Compile with `-Ilib/sdl2w`
-4. Link with `-Llib/sdl2w -lsdl2w -lbmin`
-
-Minimal Makefile variables:
-
-```makefile
-SDL2W_DIR = path/to/sdl2w
-SDL2W_LIB = lib/sdl2w/libsdl2w.a
-
-INCLUDES += -Ilib/sdl2w
-LIBS     += -Llib/sdl2w -lsdl2w -lbmin
-
-$(SDL2W_LIB):
-	$(MAKE) -C $(SDL2W_DIR)/src native
-	$(SDL2W_DIR)/copy-sdl2w-artifacts.sh lib/sdl2w
-```
-
-See [example/Makefile](example/Makefile) for a full native and wasm setup.
 
 ---
 
@@ -237,7 +182,7 @@ make -C path/to/sdl2w/src native
 path/to/sdl2w/copy-sdl2w-artifacts.sh path/to/yourgame/lib/sdl2w
 ```
 
-Rebuild your game. Copy both `libsdl2w.a` and `libbmin.a` together — they are built as a pair.
+Rebuild your game. Copy both `libsdl2w_modules.a` and `libbmin_modules.a` together — they are built as a pair.
 
 ---
 
@@ -245,11 +190,11 @@ Rebuild your game. Copy both `libsdl2w.a` and `libbmin.a` together — they are 
 
 | Mistake | Problem |
 |---|---|
-| Linking two different `libbmin.a` files | Duplicate symbol errors at link time |
-| Mixing bmin headers from another install | Subtle type/ABI mismatches |
-| Using `<String.h>` instead of `<bmin/String.h>` | Wrong or missing headers |
-| Forgetting `-lbmin` | Unresolved symbols from sdl2w |
-| Pointing includes at `sdl2w/src/deps` | Internal build path; use the copied `lib/sdl2w` bundle instead |
+| Linking two different `libbmin_modules.a` files | Duplicate symbol errors at link time |
+| Mixing `#include` of bmin headers with `import` of bmin modules | Parallel APIs; types are not the same |
+| Forgetting `#include "macros.h"` | `TRANSLATE` is a macro (logging is `sdl2w::log` / `fail`) |
+| Forgetting `-lbmin_modules` | Unresolved symbols from sdl2w |
+| Pointing includes at `sdl2w/src/bmin` headers | There is no header API; use `modules/make/use.mk` |
 
 ---
 
@@ -259,9 +204,11 @@ After `make -C src native`, the `sdl2w/sdl2w/` directory contains everything a g
 
 | Path | Purpose |
 |---|---|
-| `lib/libsdl2w.a` | SDL2W static library |
-| `lib/libbmin.a` | bmin static library (matched to this sdl2w build) |
-| `include/*.h` | SDL2W public headers |
-| `include/bmin/*.h` | bmin public headers |
+| `lib/libsdl2w_modules.a` | sdl2w module object code |
+| `lib/libbmin_modules.a` | bmin module object code (matched to this sdl2w build) |
+| `modules/*.cppm` | sdl2w named modules |
+| `modules/macros.h` | `TRANSLATE` (and optional `LOG` wrappers) |
+| `modules/bmin/` | bmin `.cppm` sources + make helpers |
+| `modules/make/use.mk` | consumer Make helper |
 
-Copy those into your project, add the flags above, and link SDL2.
+See [src/modules/MODULES.md](src/modules/MODULES.md) and [example/](example/).
