@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copy sdl2w + bundled bmin module artifacts into a consumer project directory.
+# Copy both SDL2W APIs and their matching bmin artifacts into a consumer project.
 #
 # Prerequisite: build sdl2w first, e.g.  make -C src native
 #
@@ -8,8 +8,11 @@
 #
 # Default DEST is ./lib/sdl2w relative to the current working directory.
 # Creates:
-#   DEST/libsdl2w_modules.a
-#   DEST/libbmin_modules.a
+#   DEST/lib/libsdl2w.a
+#   DEST/lib/libbmin.a
+#   DEST/lib/libsdl2w_modules.a
+#   DEST/lib/libbmin_modules.a
+#   DEST/include/             (classic SDL2W + bmin headers)
 #   DEST/modules/             (sdl2w + bmin .cppm and make helpers)
 #
 # Consumer Makefile: include DEST/modules/make/use.mk
@@ -20,22 +23,17 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 SDL2W_DIST="${ROOT}/sdl2w"
 DEST="${1:-lib/sdl2w}"
 
-if [[ ! -f "${SDL2W_DIST}/lib/libsdl2w_modules.a" ]]; then
-  echo "error: ${SDL2W_DIST}/lib/libsdl2w_modules.a not found." >&2
-  echo "Run: make -C \"${ROOT}/src\" native" >&2
-  exit 1
-fi
+for artifact in libsdl2w.a libbmin.a libsdl2w_modules.a libbmin_modules.a; do
+  if [[ ! -f "${SDL2W_DIST}/lib/${artifact}" ]]; then
+    echo "error: ${SDL2W_DIST}/lib/${artifact} not found." >&2
+    echo "Run: make -C \"${ROOT}/src\" native" >&2
+    exit 1
+  fi
+done
 
-if [[ ! -f "${SDL2W_DIST}/lib/libbmin_modules.a" ]]; then
-  echo "error: ${SDL2W_DIST}/lib/libbmin_modules.a not found." >&2
-  echo "Run: make -C \"${ROOT}/src\" native" >&2
-  exit 1
-fi
+mkdir -p "${DEST}/lib" "${DEST}/include" "${DEST}/modules"
+cp -v "${SDL2W_DIST}/lib/"*.a "${DEST}/lib/"
+cp -Rv "${SDL2W_DIST}/include/"* "${DEST}/include/"
+cp -Rv "${SDL2W_DIST}/modules/"* "${DEST}/modules/"
 
-mkdir -p "${DEST}/modules"
-cp -uv "${SDL2W_DIST}/lib/libsdl2w_modules.a" "${DEST}/"
-cp -uv "${SDL2W_DIST}/lib/libbmin_modules.a" "${DEST}/"
-cp -Ruv "${SDL2W_DIST}/modules/"* "${DEST}/modules/"
-
-echo "Copied sdl2w + bmin module artifacts to ${DEST}"
-echo "Include ${DEST}/modules/make/use.mk in your Makefile."
+echo "Copied classic and module SDL2W + bmin artifacts to ${DEST}"

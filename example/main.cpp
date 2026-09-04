@@ -3,10 +3,20 @@
 #include <exception>
 #include <string_view>
 
+#ifdef SDL2W_USE_MODULES
 #include "macros.h" // TRANSLATE (logging is sdl2w::log / endl)
-
 import sdl2w;
 import bmin.string_interop;
+#else
+#include "Animation.h"
+#include "AssetLoader.h"
+#include "Draw.h"
+#include "Init.h"
+#include "L10n.h"
+#include "Logger.h"
+#include "Store.h"
+#include "Window.h"
+#endif
 
 void runProgram(int argc, char** argv) {
   const int w = 640;

@@ -1,3 +1,3 @@
 #!/bin/bash
-# Backward-compatible name; the project is modules-only now.
+# Backward-compatible entry point for the module compilation database.
 exec "$(dirname "$0")/compile-commands.sh"

@@ -13,6 +13,7 @@
 #   sdl2w-bmi        builds pcm.cache + .o (Clang PCM must match the objects)
 
 _SDL2W_MAKE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+include $(_SDL2W_MAKE_DIR)/config.mk
 SDL2W_MODULES_DIR := $(abspath $(_SDL2W_MAKE_DIR)/..)
 
 ifeq ($(wildcard $(SDL2W_MODULES_DIR)/../lib/libsdl2w_modules.a),)
@@ -49,8 +50,7 @@ SDL2W_CXXFLAGS ?= $(EMCC_CXXFLAGS) -fprebuilt-module-path=$(SDL2W_PCMDIR) -I$(SD
 SDL2W_PRELOAD ?= --preload-file assets
 
 BMIN_WASM_OBJS = \
-	.bmin-bmi/bmin.types.o \
-	.bmin-bmi/bmin.detail.o \
+	.bmin-bmi/bmin.core.o \
 	.bmin-bmi/bmin.dynarray.o \
 	.bmin-bmi/bmin.unique_ptr.o \
 	.bmin-bmi/bmin.string.o \
@@ -61,7 +61,7 @@ BMIN_WASM_OBJS = \
 	.bmin-bmi/bmin.stringstream.o \
 	.bmin-bmi/bmin.string_interop.o \
 	.bmin-bmi/bmin.containers.o \
-	.bmin-bmi/bmin.detail-impl.o \
+	.bmin-bmi/bmin.core-impl.o \
 	.bmin-bmi/bmin.string-impl.o \
 	.bmin-bmi/bmin.stringstream-impl.o \
 	.bmin-bmi/bmin.string_interop-impl.o
@@ -79,7 +79,18 @@ SDL2W_WASM_OBJS = \
 	.sdl2w-bmi/sdl2w.emscripten.o \
 	.sdl2w-bmi/sdl2w.window.o \
 	.sdl2w-bmi/sdl2w.init.o \
-	.sdl2w-bmi/sdl2w.o
+	.sdl2w-bmi/sdl2w.o \
+	.sdl2w-bmi/sdl2w.defines-impl.o \
+	.sdl2w-bmi/sdl2w.logger-impl.o \
+	.sdl2w-bmi/sdl2w.events-impl.o \
+	.sdl2w-bmi/sdl2w.animation-impl.o \
+	.sdl2w-bmi/sdl2w.store-impl.o \
+	.sdl2w-bmi/sdl2w.draw-impl.o \
+	.sdl2w-bmi/sdl2w.assets-impl.o \
+	.sdl2w-bmi/sdl2w.l10n-impl.o \
+	.sdl2w-bmi/sdl2w.emscripten-impl.o \
+	.sdl2w-bmi/sdl2w.window-impl.o \
+	.sdl2w-bmi/sdl2w.init-impl.o
 
 SDL2W_LDLIBS ?= $(SDL2W_WASM_OBJS) $(BMIN_WASM_OBJS) $(EMCC_LIBS) $(EMCC_EXPORTED) $(SDL2W_PRELOAD)
 
@@ -94,7 +105,7 @@ $(SDL2W_BMI_STAMP):
 
 else
 
-SDL2W_CXXFLAGS ?= -Wall -std=c++23 -g -fmodules-ts -I$(SDL2W_MODULES_DIR) -I$(BMIN_MODULES_DIR)
+SDL2W_CXXFLAGS ?= $(SDL2W_MODULE_CXXFLAGS) -I$(SDL2W_MODULES_DIR) -I$(BMIN_MODULES_DIR)
 SDL2W_LDLIBS ?= -L$(SDL2W_LIBDIR) -L$(BMIN_LIBDIR) -lsdl2w_modules -lbmin_modules
 
 ifeq ($(OS),Windows_NT)
@@ -102,7 +113,6 @@ ifeq ($(OS),Windows_NT)
 else
   UNAME_S := $(shell uname -s)
   ifeq ($(UNAME_S),Darwin)
-    SDL2W_CXXFLAGS += -I/opt/homebrew/include -I/usr/local/include
     SDL2W_LDLIBS += -L/opt/homebrew/lib -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
   else
     SDL2W_LDLIBS += -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx
@@ -113,7 +123,10 @@ sdl2w-ensure-lib: $(SDL2W_LIB)
 
 $(SDL2W_LIB):
 	@echo "Building sdl2w modules library at $(SDL2W_LIB)"
-	$(MAKE) -C $(SDL2W_MODULES_DIR) lib
+	$(MAKE) -C $(SDL2W_MODULES_DIR) lib \
+		CXX="$(CXX)" \
+		SDL2W_MODULE_CXXFLAGS="$(SDL2W_MODULE_CXXFLAGS)" \
+		SDL2W_MODULE_INTERFACE_FLAGS="$(SDL2W_MODULE_INTERFACE_FLAGS)"
 
 $(BMIN_LIB):
 	@echo "Building bmin modules library at $(BMIN_LIB)"
@@ -122,14 +135,23 @@ $(BMIN_LIB):
 bmin-bmi: $(BMIN_BMI_STAMP)
 
 $(BMIN_BMI_STAMP): $(BMIN_LIB)
-	$(MAKE) -f $(BMIN_MODULES_DIR)/make/build-bmi.mk BMIN_MOD=$(BMIN_MODULES_DIR)
+	$(MAKE) -f $(BMIN_MODULES_DIR)/make/build-bmi.mk \
+		BMIN_MOD=$(BMIN_MODULES_DIR) \
+		CXX="$(CXX)" \
+		BMIN_MODULE_CXXFLAGS="$(SDL2W_MODULE_CXXFLAGS)" \
+		BMIN_MODULE_INTERFACE_FLAGS="$(SDL2W_MODULE_INTERFACE_FLAGS)"
 	@mkdir -p gcm.cache
 	@touch $(BMIN_BMI_STAMP)
 
 sdl2w-bmi: $(SDL2W_BMI_STAMP)
 
 $(SDL2W_BMI_STAMP): $(SDL2W_LIB) $(BMIN_BMI_STAMP)
-	$(MAKE) -f $(_SDL2W_MAKE_DIR)/build-bmi.mk SDL2W_MOD=$(SDL2W_MODULES_DIR) BMIN_MOD=$(BMIN_MODULES_DIR)
+	$(MAKE) -f $(_SDL2W_MAKE_DIR)/build-bmi.mk \
+		SDL2W_MOD=$(SDL2W_MODULES_DIR) \
+		BMIN_MOD=$(BMIN_MODULES_DIR) \
+		CXX="$(CXX)" \
+		SDL2W_MODULE_CXXFLAGS="$(SDL2W_MODULE_CXXFLAGS)" \
+		SDL2W_MODULE_INTERFACE_FLAGS="$(SDL2W_MODULE_INTERFACE_FLAGS)"
 	@touch $(SDL2W_BMI_STAMP)
 
 endif

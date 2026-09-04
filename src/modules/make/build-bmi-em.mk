@@ -9,7 +9,9 @@
 _SDL2W_EM_MAKE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 include $(_SDL2W_EM_MAKE_DIR)/wasm-flags.mk
 
-CXX ?= em++
+ifeq ($(origin CXX),default)
+  CXX := em++
+endif
 SDL2W_MOD ?= .
 BMIN_MOD ?= $(SDL2W_MOD)/bmin
 PCMDIR = pcm.cache
@@ -18,8 +20,7 @@ SDL2W_OBJDIR = .sdl2w-bmi
 FLAGS = $(EMCC_CXXFLAGS) -fprebuilt-module-path=$(PCMDIR) -I$(SDL2W_MOD) -I$(BMIN_MOD)
 
 BMIN_NAMES = \
-	bmin.types \
-	bmin.detail \
+	bmin.core \
 	bmin.dynarray \
 	bmin.unique_ptr \
 	bmin.string \
@@ -45,15 +46,17 @@ SDL2W_IFACE_NAMES = \
 	sdl2w.window \
 	sdl2w.init
 SDL2W_NAMES = $(SDL2W_IFACE_NAMES) sdl2w
+SDL2W_IMPL_NAMES = $(filter-out sdl2w.types,$(SDL2W_IFACE_NAMES))
 
 BMIN_PCMS = $(patsubst %,$(PCMDIR)/%.pcm,$(BMIN_NAMES))
 SDL2W_PCMS = $(patsubst %,$(PCMDIR)/%.pcm,$(SDL2W_NAMES))
 BMIN_OBJS = $(patsubst %,$(BMIN_OBJDIR)/%.o,$(BMIN_NAMES)) \
-	$(BMIN_OBJDIR)/bmin.detail-impl.o \
+	$(BMIN_OBJDIR)/bmin.core-impl.o \
 	$(BMIN_OBJDIR)/bmin.string-impl.o \
 	$(BMIN_OBJDIR)/bmin.stringstream-impl.o \
 	$(BMIN_OBJDIR)/bmin.string_interop-impl.o
-SDL2W_OBJS = $(patsubst %,$(SDL2W_OBJDIR)/%.o,$(SDL2W_NAMES))
+SDL2W_OBJS = $(patsubst %,$(SDL2W_OBJDIR)/%.o,$(SDL2W_NAMES)) \
+	$(patsubst %,$(SDL2W_OBJDIR)/%-impl.o,$(SDL2W_IMPL_NAMES))
 
 .PHONY: all clean
 
@@ -67,22 +70,19 @@ $(PCMDIR) $(BMIN_OBJDIR) $(SDL2W_OBJDIR):
 
 # --- bmin precompile ---
 
-$(PCMDIR)/bmin.types.pcm: $(BMIN_MOD)/bmin.types.cppm | $(PCMDIR)
+$(PCMDIR)/bmin.core.pcm: $(BMIN_MOD)/bmin.core.cppm | $(PCMDIR)
 	$(CXX) $(FLAGS) --precompile $< -o $@
 
-$(PCMDIR)/bmin.detail.pcm: $(BMIN_MOD)/bmin.detail.cppm $(PCMDIR)/bmin.types.pcm | $(PCMDIR)
+$(PCMDIR)/bmin.dynarray.pcm: $(BMIN_MOD)/bmin.dynarray.cppm $(PCMDIR)/bmin.core.pcm | $(PCMDIR)
 	$(CXX) $(FLAGS) --precompile $< -o $@
 
-$(PCMDIR)/bmin.dynarray.pcm: $(BMIN_MOD)/bmin.dynarray.cppm $(PCMDIR)/bmin.detail.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.unique_ptr.pcm: $(BMIN_MOD)/bmin.unique_ptr.cppm $(PCMDIR)/bmin.detail.pcm | $(PCMDIR)
+$(PCMDIR)/bmin.unique_ptr.pcm: $(BMIN_MOD)/bmin.unique_ptr.cppm $(PCMDIR)/bmin.core.pcm | $(PCMDIR)
 	$(CXX) $(FLAGS) --precompile $< -o $@
 
 $(PCMDIR)/bmin.string.pcm: $(BMIN_MOD)/bmin.string.cppm $(PCMDIR)/bmin.dynarray.pcm | $(PCMDIR)
 	$(CXX) $(FLAGS) --precompile $< -o $@
 
-$(PCMDIR)/bmin.list.pcm: $(BMIN_MOD)/bmin.list.cppm $(PCMDIR)/bmin.detail.pcm | $(PCMDIR)
+$(PCMDIR)/bmin.list.pcm: $(BMIN_MOD)/bmin.list.cppm $(PCMDIR)/bmin.core.pcm | $(PCMDIR)
 	$(CXX) $(FLAGS) --precompile $< -o $@
 
 $(PCMDIR)/bmin.queue.pcm: $(BMIN_MOD)/bmin.queue.cppm $(PCMDIR)/bmin.dynarray.pcm | $(PCMDIR)
@@ -160,7 +160,10 @@ $(BMIN_OBJDIR)/%.o: $(PCMDIR)/%.pcm | $(BMIN_OBJDIR)
 $(SDL2W_OBJDIR)/%.o: $(PCMDIR)/%.pcm | $(SDL2W_OBJDIR)
 	$(CXX) $(FLAGS) -c $< -o $@
 
-$(BMIN_OBJDIR)/bmin.detail-impl.o: $(BMIN_MOD)/bmin.detail.cpp $(PCMDIR)/bmin.detail.pcm | $(BMIN_OBJDIR)
+$(SDL2W_OBJDIR)/%-impl.o: $(SDL2W_MOD)/%.cpp $(PCMDIR)/%.pcm | $(SDL2W_OBJDIR)
+	$(CXX) $(FLAGS) -c $< -o $@
+
+$(BMIN_OBJDIR)/bmin.core-impl.o: $(BMIN_MOD)/bmin.core.cpp $(PCMDIR)/bmin.core.pcm | $(BMIN_OBJDIR)
 	$(CXX) $(FLAGS) -c $< -o $@
 
 $(BMIN_OBJDIR)/bmin.string-impl.o: $(BMIN_MOD)/bmin.string.cpp $(PCMDIR)/bmin.string.pcm | $(BMIN_OBJDIR)

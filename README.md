@@ -35,18 +35,25 @@ It also includes the following tools:
 
 The dependencies for this project are:
 
-- [bmin](https://github.com/benjamin-t-brown/bmin) — fetched automatically on first build into `bmin/` at the repo root (`BMIN_REF` defaults to `experiment/cpp-modules`). Module sources and `libbmin_modules.a` are copied to `src/bmin/`.
+- [bmin](https://github.com/benjamin-t-brown/bmin) — fetched automatically on first build into `bmin/` at the repo root (`BMIN_REF` defaults to `experiment/cpp-modules`). Its matching header and module artifacts are copied to `src/bmin/`.
 - SDL2
 - SDL2_image
 - SDL2_mixer
 - SDL2_ttf
 - SDL2_gfx
 
-bmin is cloned to `bmin/` at the repo root and built as part of `make native`. Module artifacts are copied to `src/bmin/`. There is no header API. Wasm uses the same modules via em++ (Clang PCMs). To remove the clone and copied deps: `make clean-deps` from `src/`. To pin a version: `make native BMIN_REF=v0.1.0` (or a commit SHA).
+bmin is cloned to `bmin/` at the repo root and built as part of `make native`.
+SDL2W and bmin both ship a classic header library and a named-module library.
+To remove the clone and copied dependencies, run `make clean-deps` from `src/`.
 
 # Build output
 
-SDL2W is **C++ modules only**. Supported platforms:
+SDL2W is dual-ship on native platforms:
+
+- classic headers with `libsdl2w.a` + `libbmin.a`
+- named modules with `libsdl2w_modules.a` + `libbmin_modules.a`
+
+The native module toolchain currently targets GCC 15. Supported platforms:
 
 - GCC (c++23 + `-fmodules-ts`) — native
   - Windows x86_64
@@ -73,8 +80,9 @@ Override the SDK path with `EMSDK=/path/to/emsdk`.
 
 The build command outputs a folder `sdl2w` in the repo which contains
 ```
-lib     - libsdl2w_modules.a and libbmin_modules.a
-modules - .cppm sources, macros.h, and make/use.mk
+include - classic SDL2W and bmin headers
+lib     - both SDL2W archives and both matching bmin archives
+modules - .cppm interfaces, .cpp implementation units, macros, and make helpers
 ```
 
 # IDE setup (Cursor / VS Code)
@@ -84,8 +92,9 @@ For accurate go-to-definition, diagnostics, and refactoring, point your editor a
 at the repo root. That file is **gitignored** — generate it locally after dependencies
 are in place.
 
-sdl2w modules live under `src/modules/`. bmin module sources only exist after bmin
-has been cloned and copied to `src/bmin/modules/` by the build. Run a native build
+sdl2w modules live under `src/modules/`; the parallel classic sources live under
+`src/lib/`. bmin artifacts exist after bmin has been built and copied to
+`src/bmin/`. Run a native build
 first (or let the script below fetch bmin for you), then generate compile commands.
 
 From an **MSYS2 UCRT64** shell (same environment used for `make native`):
@@ -114,8 +123,8 @@ Regenerate after changing Makefiles or adding/removing source files:
 ./compile-commands.sh
 ```
 
-The database covers `src/modules/*.cppm`, `src/bmin/modules/*.cppm`, `smoke.cpp`,
-and `example/main.cpp`. clangd needs `--experimental-modules-support`
+The module database covers interfaces, module implementation units, direct-import
+probes, bundled bmin modules, and the module form of `example/main.cpp`. clangd needs `--experimental-modules-support`
 (already in `.vscode/settings.json`). Restart clangd after regenerating.
 
 On Windows, use the MSYS2 shell so paths and `g++` match the build:
@@ -179,9 +188,9 @@ That writes `SDL2W_EXAMPLE.js`, `.wasm`, and `.data` to `web/`. From `web/`, `np
 
 # Linking SDL2W in your game
 
-`sdl2w` builds `libsdl2w_modules.a` plus `.cppm` sources. A matching
-`libbmin_modules.a` is produced from the same build — **consumers should use
-that bundled bmin**, not a separate checkout, so versions stay in sync.
+`sdl2w` builds both APIs. Module consumers use `libsdl2w_modules.a` and the
+matching `libbmin_modules.a`; header consumers use `libsdl2w.a` and the matching
+`libbmin.a`. Use the bundled bmin in either mode so versions stay in sync.
 
 ```cpp
 import sdl2w;
@@ -198,7 +207,8 @@ See `src/modules/MODULES.md` and `INCLUDE.md`.
    make -C path/to/sdl2w/src native
    ```
 
-   This creates `path/to/sdl2w/sdl2w/` with libs and module sources.
+   This creates `path/to/sdl2w/sdl2w/` with both library forms and their
+   public sources.
 
 2. Copy artifacts into your game project:
 
@@ -214,19 +224,26 @@ See `src/modules/MODULES.md` and `INCLUDE.md`.
    	$(CXX) $(SDL2W_CXXFLAGS) -c main.cpp -o $@
    ```
 
-The `example/` project follows this pattern.
+The `example/` project builds this module form and the classic header form from
+the same source file.
 
-If your game also uses bmin directly, use **only** the bmin modules and
-`libbmin_modules.a` copied from sdl2w's build — do not link a second bmin.
+If your game also uses bmin directly, use the bmin artifacts copied from the
+same SDL2W build—modules with modules, or headers with headers.
 
 ## Artifact layout after copy
 
 ```
 lib/sdl2w/
-  libsdl2w_modules.a
-  libbmin_modules.a
+  lib/
+    libsdl2w.a
+    libbmin.a
+    libsdl2w_modules.a
+    libbmin_modules.a
+  include/
+    Window.h, Draw.h, ...
+    bmin/
   modules/
-    sdl2w.cppm, macros.h, ...
+    sdl2w.cppm, sdl2w.*.cpp, macros.h, ...
     make/use.mk
     bmin/
 ```

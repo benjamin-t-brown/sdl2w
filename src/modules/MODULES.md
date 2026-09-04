@@ -1,29 +1,40 @@
-# Using sdl2w C++ modules
+# Using SDL2W C++ modules
 
-sdl2w is modules-only. Native consumers `import sdl2w` and link
-`libsdl2w_modules.a` + `libbmin_modules.a`. There is no header / `libsdl2w.a`
-path.
+SDL2W ships two parallel native APIs from the same checkout:
 
-Wasm consumers use the same `.cppm` sources with em++ (`make TARGET=wasm`).
-Clang BMIs (`pcm.cache`) are not interchangeable with GCC `gcm.cache`.
-`use.mk` rebuilds PCMs and links the resulting `.o` files.
+| Consumer | API | Link libraries |
+|---|---|---|
+| Classic | `#include "Window.h"` | `-lsdl2w -lbmin` |
+| Modules | `import sdl2w` | `-lsdl2w_modules -lbmin_modules` |
 
-Do not `#include` bmin headers in the same program as `import` of bmin modules
-(they are parallel APIs, not the same types).
+Do not mix the header and module forms of SDL2W or bmin in one program. They
+are parallel APIs, not aliases for the same C++ entities. The shipped example
+compiles once through each API to keep their public surfaces aligned.
 
-## Layout (after `make native`)
+## Module layout
 
-```
+Each named module has a small `.cppm` interface containing its public
+declarations and required inline code. Non-template definitions live in the
+matching `.cpp` module implementation unit. The umbrella `sdl2w.cppm` only
+re-exports the supported public modules.
+
+After `make -C src native`:
+
+```text
+sdl2w/lib/libsdl2w.a
+sdl2w/lib/libbmin.a
+sdl2w/include/*.h
+sdl2w/include/bmin/
 sdl2w/lib/libsdl2w_modules.a
 sdl2w/lib/libbmin_modules.a
-sdl2w/modules/*.cppm            # one file per named module (interface + bodies)
-sdl2w/modules/macros.h          # TRANSLATE (and optional LOG wrappers)
-sdl2w/modules/bmin/             # bmin module sources + make helpers
+sdl2w/modules/*.cppm
+sdl2w/modules/*.cpp
+sdl2w/modules/macros.h
+sdl2w/modules/bmin/
 sdl2w/modules/make/use.mk
-sdl2w/modules/make/build-bmi.mk
 ```
 
-## Consumer Makefile
+## Module consumer Makefile
 
 ```makefile
 include path/to/sdl2w/modules/make/use.mk
@@ -33,33 +44,29 @@ main.o: main.cpp sdl2w-bmi
 
 app: main.o
 	$(CXX) $(SDL2W_CXXFLAGS) -o $@ main.o $(SDL2W_LDLIBS)
-
-# Wasm (em++). Requires emsdk; set EMSDK if it is not ../emsdk from the repo.
-js:
-	$(MAKE) TARGET=wasm app.js
 ```
 
 ```cpp
 import sdl2w;
-#include "macros.h"   // TRANSLATE (logging is exported: log / logAt / fail / endl)
-
-int main() {
-  sdl2w::Window::init();
-  sdl2w::Store store;
-  sdl2w::Window window(store, {.title = "hi", .w = 640, .h = 480,
-                               .x = 0, .y = 0, .renderW = 640, .renderH = 480});
-  sdl2w::log(sdl2w::INFO) << "ok" << sdl2w::endl;
-  sdl2w::Window::unInit();
-}
+#include "macros.h"  // TRANSLATE; macros cannot be exported
 ```
 
-Prefer `import sdl2w` unless you need a smaller surface.
-Import `bmin.string_interop` separately for extra `std::string_view` helpers.
+Prefer `import sdl2w` unless a smaller dependency surface matters. Import
+`bmin.string_interop` separately for its `std::string_view` helpers.
 
-## clangd / editor
+BMIs are compiler-local and are intentionally rebuilt by `use.mk`. The native
+bmin + SDL2W module pair currently targets GCC 15; on macOS the helpers select
+`g++-15` because `/usr/bin/g++` is Apple Clang. Every `.cppm` producer receives
+`-x c++` explicitly.
+
+## Checks
 
 ```bash
-./compile-commands.sh
+make -C src native                 # builds and installs both APIs
+make -C src/modules check          # module smoke + every direct import
+make -C example clean all          # same application, both APIs
+make -C src test                   # runs all three checks above
 ```
 
-Then restart clangd. Repo settings enable `--experimental-modules-support`.
+Wasm continues to compile the module sources with em++/Clang PCMs. GCC BMIs
+(`gcm.cache`) and Clang PCMs (`pcm.cache`) are not interchangeable.

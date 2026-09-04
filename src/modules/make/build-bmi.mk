@@ -3,10 +3,11 @@
 #   make -f path/to/sdl2w/modules/make/build-bmi.mk \
 #     SDL2W_MOD=path/to/sdl2w/modules BMIN_MOD=path/to/sdl2w/modules/bmin
 
-CXX ?= g++
 SDL2W_MOD ?= .
 BMIN_MOD ?= $(SDL2W_MOD)/bmin
-FLAGS = -Wall -std=c++23 -g -fmodules-ts -I$(SDL2W_MOD) -I$(BMIN_MOD)
+include $(dir $(lastword $(MAKEFILE_LIST)))config.mk
+
+FLAGS = $(SDL2W_MODULE_CXXFLAGS) $(SDL2W_MODULE_INTERFACE_FLAGS) -I$(SDL2W_MOD) -I$(BMIN_MOD)
 OBJDIR = .sdl2w-bmi
 
 .PHONY: all clean

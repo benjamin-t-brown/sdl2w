@@ -28,7 +28,7 @@ if [[ -z "${CLANGXX:-}" ]]; then
 	fi
 fi
 
-if [[ -z "${PYTHON:-}" ]]; then
+if [[ -z "${PYTHON:-}" || ! -x "${PYTHON}" ]]; then
 	if command -v python >/dev/null 2>&1; then
 		PYTHON=python
 	elif command -v python3 >/dev/null 2>&1; then
@@ -79,8 +79,7 @@ SDL2W_IFACES = [
 ]
 
 BMIN_IFACES = [
-    "bmin.types.cppm",
-    "bmin.detail.cppm",
+    "bmin.core.cppm",
     "bmin.dynarray.cppm",
     "bmin.unique_ptr.cppm",
     "bmin.string.cppm",
@@ -94,7 +93,7 @@ BMIN_IFACES = [
 ]
 
 BMIN_IMPLS = [
-    "bmin.detail.cpp",
+    "bmin.core.cpp",
     "bmin.string.cpp",
     "bmin.stringstream.cpp",
     "bmin.string_interop.cpp",
@@ -110,8 +109,8 @@ if bmin_mod.is_dir():
     COMMON.append(f"-I{bmin_mod.as_posix()}")
 
 
-def entry(directory: Path, source: Path) -> dict:
-    args = [compiler, *COMMON]
+def entry(directory: Path, source: Path, extra_args=None) -> dict:
+    args = [compiler, *COMMON, *(extra_args or [])]
     if source.suffix == ".cppm":
         args.extend(["-x", "c++-module"])
     args.extend(["-c", source.as_posix(), "-o", (directory / (source.stem + ".o")).as_posix()])
@@ -139,13 +138,19 @@ for name in SDL2W_IFACES:
     if src.is_file():
         db.append(entry(mod_dir, src))
 
+for src in sorted(mod_dir.glob("sdl2w.*.cpp")):
+    db.append(entry(mod_dir, src))
+
+for src in sorted((mod_dir / "direct_import").glob("*.cpp")):
+    db.append(entry(mod_dir, src))
+
 smoke = mod_dir / "smoke.cpp"
 if smoke.is_file():
     db.append(entry(mod_dir, smoke))
 
 main = example_dir / "main.cpp"
 if main.is_file():
-    db.append(entry(example_dir, main))
+    db.append(entry(example_dir, main, extra_args=["-DSDL2W_USE_MODULES=1"]))
 
 anims = tools_dir / "Anims.cpp"
 if anims.is_file():
