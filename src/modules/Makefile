@@ -191,7 +191,6 @@ smoke: $(BUILD)/smoke
 	./$(BUILD)/smoke
 
 MODULE_SOURCES = \
-	macros.h \
 	sdl_fwd.h \
 	impl_headers.h \
 	sdl2w.defines.cppm \

@@ -60,7 +60,8 @@ bool parseTranslationLine(const std::string& line,
   return false;
 }
 
-// Function to scan a single file for TRANSLATE macros
+// Scan a source file for TRANSLATE calls. Header consumers use a macro while
+// module consumers use an exported function with the same spelling.
 void scanFileForTranslations(const fs::path& filePath,
                              std::unordered_set<std::string>& foundStrings) {
   std::ifstream file(filePath);

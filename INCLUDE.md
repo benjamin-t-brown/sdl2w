@@ -31,7 +31,6 @@ lib/sdl2w/
     sdl2w.cppm
     sdl2w.*.cppm
     sdl2w.*.cpp
-    macros.h
     bmin/
     make/use.mk
 ```
@@ -70,8 +69,14 @@ yourgame: main.o
 
 ```cpp
 import sdl2w;
-#include "macros.h"  // TRANSLATE; macros cannot be exported
+
+LOG(INFO) << "Game started" << LOG_ENDL;
+const char* title = TRANSLATE("Welcome!");
 ```
+
+`LOG`, `LOG_LINE`, `LOG_ENDL`, `THROW_RUNTIME_ERROR`, `TRANSLATE`, and the log
+levels are exported typed declarations in the module API. The classic header
+API continues to provide its existing macros.
 
 Import `bmin.string_interop` separately when its `std::string_view` helpers
 are required. Do not also include bmin headers in a module consumer.

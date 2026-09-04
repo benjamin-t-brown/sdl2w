@@ -7,7 +7,6 @@ module;
 #include <emscripten/html5.h>
 #endif
 
-#include "macros.h"
 
 export module sdl2w.emscripten;
 import sdl2w.logger;

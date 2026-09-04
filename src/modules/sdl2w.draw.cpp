@@ -21,7 +21,6 @@ module;
 #include <SDL2/SDL_ttf.h>
 #endif
 
-#include "macros.h"
 
 module sdl2w.draw;
 import sdl2w.animation;

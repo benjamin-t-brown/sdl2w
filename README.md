@@ -194,8 +194,14 @@ matching `libbmin_modules.a`; header consumers use `libsdl2w.a` and the matching
 
 ```cpp
 import sdl2w;
-#include "macros.h"   // TRANSLATE; logging is sdl2w::log / logAt / fail
+
+LOG(INFO) << "Game started" << LOG_ENDL;
+const char* title = TRANSLATE("Welcome!");
 ```
+
+The module exports these familiar spellings as typed C++ functions and
+constants. No macro header is required. Classic header consumers retain the
+existing macros.
 
 See `src/modules/MODULES.md` and `INCLUDE.md`.
 
@@ -243,7 +249,7 @@ lib/sdl2w/
     Window.h, Draw.h, ...
     bmin/
   modules/
-    sdl2w.cppm, sdl2w.*.cpp, macros.h, ...
+    sdl2w.cppm, sdl2w.*.cpp, ...
     make/use.mk
     bmin/
 ```

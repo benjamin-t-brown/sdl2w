@@ -4,7 +4,6 @@
 #include <string_view>
 
 #ifdef SDL2W_USE_MODULES
-#include "macros.h" // TRANSLATE (logging is sdl2w::log / endl)
 import sdl2w;
 import bmin.string_interop;
 #else

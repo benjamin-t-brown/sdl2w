@@ -17,8 +17,6 @@ module;
 #include <execinfo.h>
 #endif
 
-#include "macros.h"
-
 export module sdl2w.logger;
 export import bmin.string;
 export import bmin.stringstream;
@@ -93,4 +91,42 @@ fail(const bmin::String& msg,
 
 export namespace sdl2w {
 inline const bmin::String& endl = Logger::endl;
+}
+
+// Module consumers keep the classic logging spellings without relying on
+// preprocessor macros. These declarations intentionally live in the global
+// namespace so `import sdl2w;` is all that is required for LOG(INFO).
+export inline constexpr sdl2w::LogType DEBUG = sdl2w::DEBUG;
+export inline constexpr sdl2w::LogType INFO = sdl2w::INFO;
+export inline constexpr sdl2w::LogType WARN = sdl2w::WARN;
+export inline constexpr sdl2w::LogType ERROR = sdl2w::ERROR;
+
+export inline sdl2w::Logger LOG(sdl2w::LogType level) {
+  return sdl2w::Logger(level);
+}
+
+export inline sdl2w::Logger
+LOG_LINE(sdl2w::LogType level,
+         std::source_location loc = std::source_location::current()) {
+  return sdl2w::Logger(level, loc);
+}
+
+export inline const bmin::String& LOG_ENDL = sdl2w::endl;
+
+export [[noreturn]] inline void
+THROW_RUNTIME_ERROR(std::string_view msg,
+                    std::source_location loc = std::source_location::current()) {
+  sdl2w::fail(msg, loc);
+}
+
+export [[noreturn]] inline void
+THROW_RUNTIME_ERROR(const char* msg,
+                    std::source_location loc = std::source_location::current()) {
+  sdl2w::fail(std::string_view(msg), loc);
+}
+
+export [[noreturn]] inline void
+THROW_RUNTIME_ERROR(const bmin::String& msg,
+                    std::source_location loc = std::source_location::current()) {
+  sdl2w::fail(msg, loc);
 }

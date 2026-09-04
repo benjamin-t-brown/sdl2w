@@ -29,7 +29,6 @@ sdl2w/lib/libsdl2w_modules.a
 sdl2w/lib/libbmin_modules.a
 sdl2w/modules/*.cppm
 sdl2w/modules/*.cpp
-sdl2w/modules/macros.h
 sdl2w/modules/bmin/
 sdl2w/modules/make/use.mk
 ```
@@ -48,8 +47,14 @@ app: main.o
 
 ```cpp
 import sdl2w;
-#include "macros.h"  // TRANSLATE; macros cannot be exported
+
+LOG(INFO) << "Game started" << LOG_ENDL;
+const char* title = TRANSLATE("Welcome!");
 ```
+
+The convenience spellings are exported functions and constants rather than
+macros. `LOG_LINE` and `THROW_RUNTIME_ERROR` preserve the call site with
+`std::source_location`. Classic consumers retain the macros from the headers.
 
 Prefer `import sdl2w` unless a smaller dependency surface matters. Import
 `bmin.string_interop` separately for its `std::string_view` helpers.

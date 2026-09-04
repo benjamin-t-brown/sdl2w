@@ -18,7 +18,6 @@ module;
 #include <SDL2/SDL_ttf.h>
 #endif
 
-#include "macros.h"
 
 module sdl2w.store;
 import sdl2w.animation;

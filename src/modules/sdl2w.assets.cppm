@@ -22,7 +22,6 @@ module;
 #include <SDL2/SDL_ttf.h>
 #endif
 
-#include "macros.h"
 
 export module sdl2w.assets;
 export import sdl2w.draw;

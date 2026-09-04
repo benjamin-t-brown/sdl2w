@@ -2,7 +2,6 @@ module;
 #include <string_view>
 
 #include "impl_headers.h"
-#include "macros.h"
 
 export module sdl2w.animation;
 export import sdl2w.types;

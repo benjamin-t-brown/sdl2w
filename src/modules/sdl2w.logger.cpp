@@ -17,7 +17,6 @@ module;
 #include <execinfo.h>
 #endif
 
-#include "macros.h"
 
 module sdl2w.logger;
 import bmin.string;

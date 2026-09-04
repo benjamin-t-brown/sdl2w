@@ -11,7 +11,6 @@ module;
 #include <SDL2/SDL_mouse.h>
 #endif
 
-#include "macros.h"
 
 module sdl2w.events;
 import bmin.containers;

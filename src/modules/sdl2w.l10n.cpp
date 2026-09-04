@@ -3,8 +3,6 @@ module;
 #include <string_view>
 
 #include "impl_headers.h"
-#include "macros.h"
-
 module sdl2w.l10n;
 import bmin.containers;
 import sdl2w.assets;
@@ -137,13 +135,26 @@ const bmin::Map<size_t, bmin::String>& L10n::getStrings() {
   return locStrings[language];
 }
 
-bmin::String L10n::trans(size_t id) {
+const bmin::String& L10n::transRef(size_t id) {
   const bmin::Map<size_t, bmin::String>& strings = getStrings();
   auto it = const_cast<bmin::Map<size_t, bmin::String>&>(strings).find(id);
   if (it != strings.end()) {
     return (*it).value;
   }
-  return "?MISSING?";
+  static const bmin::String missing("?MISSING?");
+  return missing;
+}
+
+bmin::String L10n::trans(size_t id) { return transRef(id); }
+
+const char* L10n::translate(const char* text) {
+  if (text == nullptr) {
+    return "";
+  }
+  if (!isEnabled()) {
+    return text;
+  }
+  return transRef(hash(text)).cStr();
 }
 
 size_t L10n::hash(std::string_view str) {
