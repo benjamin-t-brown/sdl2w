@@ -7,75 +7,28 @@ SDL2W_MOD ?= .
 BMIN_MOD ?= $(SDL2W_MOD)/bmin
 include $(dir $(lastword $(MAKEFILE_LIST)))config.mk
 
-FLAGS = $(SDL2W_MODULE_CXXFLAGS) $(SDL2W_MODULE_INTERFACE_FLAGS) -I$(SDL2W_MOD) -I$(BMIN_MOD)
 OBJDIR = .sdl2w-bmi
+SDL2W_CACHE_KEY := $(shell sh $(BMIN_MOD)/make/cache-key.sh "$(CXX)" "$(subst ",\",$(SDL2W_MODULE_CXXFLAGS) $(SDL2W_MODULE_INTERFACE_FLAGS) -I$(SDL2W_MOD) -I$(BMIN_MOD))")
+SDL2W_CACHE_STAMP := gcm.cache/.sdl2w-config-$(SDL2W_CACHE_KEY)
+SDL2W_READY_STAMP := gcm.cache/.sdl2w-ready-$(SDL2W_CACHE_KEY)
+SDL2W_MODULE_ROOT := $(SDL2W_MOD)
+SDL2W_MODULE_OBJDIR := $(OBJDIR)
+SDL2W_MODULE_INCLUDES := -I$(SDL2W_MOD) -I$(BMIN_MOD)
+SDL2W_MODULE_EXTRA_PREREQS := $(SDL2W_CACHE_STAMP)
+.DEFAULT_GOAL := all
+include $(dir $(lastword $(MAKEFILE_LIST)))native-rules.mk
 
 .PHONY: all clean
 
-all: \
-	$(OBJDIR)/sdl2w.defines.o \
-	$(OBJDIR)/sdl2w.logger.o \
-	$(OBJDIR)/sdl2w.types.o \
-	$(OBJDIR)/sdl2w.events.o \
-	$(OBJDIR)/sdl2w.animation.o \
-	$(OBJDIR)/sdl2w.store.o \
-	$(OBJDIR)/sdl2w.draw.o \
-	$(OBJDIR)/sdl2w.assets.o \
-	$(OBJDIR)/sdl2w.l10n.o \
-	$(OBJDIR)/sdl2w.emscripten.o \
-	$(OBJDIR)/sdl2w.window.o \
-	$(OBJDIR)/sdl2w.init.o \
-	$(OBJDIR)/sdl2w.o
+all: $(SDL2W_INTERFACE_OBJECTS)
+	@touch $(SDL2W_READY_STAMP)
+
+$(SDL2W_CACHE_STAMP):
+	rm -rf $(OBJDIR)
 	@mkdir -p gcm.cache
-	@touch gcm.cache/.sdl2w-ready
+	@touch $@
 
-$(OBJDIR):
-	@mkdir -p $@
-
-$(OBJDIR)/sdl2w.defines.o: $(SDL2W_MOD)/sdl2w.defines.cppm | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.logger.o: $(SDL2W_MOD)/sdl2w.logger.cppm $(OBJDIR)/sdl2w.defines.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.types.o: $(SDL2W_MOD)/sdl2w.types.cppm $(OBJDIR)/sdl2w.defines.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.events.o: $(SDL2W_MOD)/sdl2w.events.cppm $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.animation.o: $(SDL2W_MOD)/sdl2w.animation.cppm $(OBJDIR)/sdl2w.types.o $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.store.o: $(SDL2W_MOD)/sdl2w.store.cppm $(OBJDIR)/sdl2w.animation.o $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.draw.o: $(SDL2W_MOD)/sdl2w.draw.cppm $(OBJDIR)/sdl2w.animation.o $(OBJDIR)/sdl2w.store.o $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.assets.o: $(SDL2W_MOD)/sdl2w.assets.cppm $(OBJDIR)/sdl2w.draw.o $(OBJDIR)/sdl2w.store.o $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.l10n.o: $(SDL2W_MOD)/sdl2w.l10n.cppm $(OBJDIR)/sdl2w.assets.o $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.emscripten.o: $(SDL2W_MOD)/sdl2w.emscripten.cppm $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.window.o: $(SDL2W_MOD)/sdl2w.window.cppm \
-		$(OBJDIR)/sdl2w.draw.o $(OBJDIR)/sdl2w.events.o $(OBJDIR)/sdl2w.store.o \
-		$(OBJDIR)/sdl2w.assets.o $(OBJDIR)/sdl2w.emscripten.o $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.init.o: $(SDL2W_MOD)/sdl2w.init.cppm $(OBJDIR)/sdl2w.window.o $(OBJDIR)/sdl2w.l10n.o $(OBJDIR)/sdl2w.logger.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(OBJDIR)/sdl2w.o: $(SDL2W_MOD)/sdl2w.cppm \
-		$(OBJDIR)/sdl2w.defines.o $(OBJDIR)/sdl2w.logger.o $(OBJDIR)/sdl2w.types.o \
-		$(OBJDIR)/sdl2w.events.o $(OBJDIR)/sdl2w.animation.o $(OBJDIR)/sdl2w.store.o \
-		$(OBJDIR)/sdl2w.draw.o $(OBJDIR)/sdl2w.assets.o $(OBJDIR)/sdl2w.l10n.o \
-		$(OBJDIR)/sdl2w.window.o $(OBJDIR)/sdl2w.init.o $(OBJDIR)/sdl2w.emscripten.o | $(OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
+$(OBJDIR): | $(SDL2W_CACHE_STAMP)
 
 clean:
 	rm -rf $(OBJDIR) gcm.cache

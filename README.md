@@ -226,7 +226,7 @@ See `src/modules/MODULES.md` and `INCLUDE.md`.
 
    ```makefile
    include path/to/yourgame/lib/sdl2w/modules/make/use.mk
-   main.o: main.cpp sdl2w-bmi
+   main.o: main.cpp | sdl2w-bmi
    	$(CXX) $(SDL2W_CXXFLAGS) -c main.cpp -o $@
    ```
 

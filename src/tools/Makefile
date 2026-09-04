@@ -18,7 +18,7 @@ all: $(OUT)/Anims$(EXE_SUFFIX) $(OUT)/L10nScanner$(EXE_SUFFIX)
 $(OUT):
 	@mkdir -p $@
 
-Anims.o: Anims.cpp sdl2w-bmi
+Anims.o: Anims.cpp | sdl2w-bmi
 	$(CXX) $(SDL2W_CXXFLAGS) -c Anims.cpp -o $@
 
 $(OUT)/Anims$(EXE_SUFFIX): Anims.o $(SDL2W_LIB) | $(OUT)

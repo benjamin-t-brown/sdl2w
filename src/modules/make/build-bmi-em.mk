@@ -8,6 +8,7 @@
 
 _SDL2W_EM_MAKE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 include $(_SDL2W_EM_MAKE_DIR)/wasm-flags.mk
+include $(_SDL2W_EM_MAKE_DIR)/module-graph.mk
 
 ifeq ($(origin CXX),default)
   CXX := em++
@@ -15,147 +16,60 @@ endif
 SDL2W_MOD ?= .
 BMIN_MOD ?= $(SDL2W_MOD)/bmin
 PCMDIR = pcm.cache
-BMIN_OBJDIR = .bmin-bmi
 SDL2W_OBJDIR = .sdl2w-bmi
 FLAGS = $(EMCC_CXXFLAGS) -fprebuilt-module-path=$(PCMDIR) -I$(SDL2W_MOD) -I$(BMIN_MOD)
+BMIN_BUILD_MK = $(BMIN_MOD)/make/build-bmi-clang.mk
+include $(BMIN_MOD)/make/module-graph.mk
 
-BMIN_NAMES = \
-	bmin.core \
-	bmin.dynarray \
-	bmin.unique_ptr \
-	bmin.string \
-	bmin.list \
-	bmin.queue \
-	bmin.hash \
-	bmin.map \
-	bmin.stringstream \
-	bmin.string_interop \
-	bmin.containers
+BMIN_CACHE_KEY := $(shell sh $(BMIN_MOD)/make/cache-key.sh "$(CXX)" "$(subst ",\",$(FLAGS))")
+BMIN_READY_STAMP := $(PCMDIR)/.bmin-ready-$(BMIN_CACHE_KEY)
+SDL2W_CACHE_KEY := $(shell sh $(BMIN_MOD)/make/cache-key.sh "$(CXX)" "$(subst ",\",$(FLAGS))")
+SDL2W_CACHE_STAMP := $(PCMDIR)/.sdl2w-config-$(SDL2W_CACHE_KEY)
+SDL2W_READY_STAMP := $(PCMDIR)/.sdl2w-ready-$(SDL2W_CACHE_KEY)
 
-SDL2W_IFACE_NAMES = \
-	sdl2w.defines \
-	sdl2w.logger \
-	sdl2w.types \
-	sdl2w.events \
-	sdl2w.animation \
-	sdl2w.store \
-	sdl2w.draw \
-	sdl2w.assets \
-	sdl2w.l10n \
-	sdl2w.emscripten \
-	sdl2w.window \
-	sdl2w.init
-SDL2W_NAMES = $(SDL2W_IFACE_NAMES) sdl2w
-SDL2W_IMPL_NAMES = $(filter-out sdl2w.types,$(SDL2W_IFACE_NAMES))
+BMIN_SOURCES := \
+	$(addprefix $(BMIN_MOD)/,$(addsuffix .cppm,$(BMIN_INTERFACE_MODULES))) \
+	$(addprefix $(BMIN_MOD)/,$(addsuffix .cpp,$(BMIN_IMPLEMENTATION_MODULES)))
+SDL2W_PCMS := $(patsubst %,$(PCMDIR)/%.pcm,$(SDL2W_INTERFACE_MODULES))
+SDL2W_OBJS := $(patsubst %,$(SDL2W_OBJDIR)/%.o,$(SDL2W_INTERFACE_MODULES)) \
+	$(patsubst %,$(SDL2W_OBJDIR)/%-impl.o,$(SDL2W_IMPLEMENTATION_MODULES))
 
-BMIN_PCMS = $(patsubst %,$(PCMDIR)/%.pcm,$(BMIN_NAMES))
-SDL2W_PCMS = $(patsubst %,$(PCMDIR)/%.pcm,$(SDL2W_NAMES))
-BMIN_OBJS = $(patsubst %,$(BMIN_OBJDIR)/%.o,$(BMIN_NAMES)) \
-	$(BMIN_OBJDIR)/bmin.core-impl.o \
-	$(BMIN_OBJDIR)/bmin.string-impl.o \
-	$(BMIN_OBJDIR)/bmin.stringstream-impl.o \
-	$(BMIN_OBJDIR)/bmin.string_interop-impl.o
-SDL2W_OBJS = $(patsubst %,$(SDL2W_OBJDIR)/%.o,$(SDL2W_NAMES)) \
-	$(patsubst %,$(SDL2W_OBJDIR)/%-impl.o,$(SDL2W_IMPL_NAMES))
-
+.DEFAULT_GOAL := all
 .PHONY: all clean
 
-all: $(BMIN_OBJS) $(SDL2W_OBJS)
+all: $(SDL2W_OBJS)
+	@touch $(SDL2W_READY_STAMP)
+
+$(BMIN_READY_STAMP): $(BMIN_BUILD_MK) $(BMIN_SOURCES)
+	$(MAKE) -f $(BMIN_BUILD_MK) \
+		CXX="$(CXX)" \
+		BMIN_MOD=$(BMIN_MOD) \
+		BMIN_PCMDIR=$(PCMDIR) \
+		BMIN_OBJDIR=.bmin-bmi \
+		BMIN_CLANG_CXXFLAGS="$(subst ",\",$(FLAGS))"
+
+$(SDL2W_CACHE_STAMP): $(BMIN_READY_STAMP)
+	rm -rf $(SDL2W_OBJDIR)
 	@mkdir -p $(PCMDIR)
-	@touch $(PCMDIR)/.bmin-ready
-	@touch $(PCMDIR)/.sdl2w-ready
+	@touch $@
 
-$(PCMDIR) $(BMIN_OBJDIR) $(SDL2W_OBJDIR):
+$(SDL2W_OBJDIR): | $(SDL2W_CACHE_STAMP)
 	@mkdir -p $@
-
-# --- bmin precompile ---
-
-$(PCMDIR)/bmin.core.pcm: $(BMIN_MOD)/bmin.core.cppm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.dynarray.pcm: $(BMIN_MOD)/bmin.dynarray.cppm $(PCMDIR)/bmin.core.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.unique_ptr.pcm: $(BMIN_MOD)/bmin.unique_ptr.cppm $(PCMDIR)/bmin.core.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.string.pcm: $(BMIN_MOD)/bmin.string.cppm $(PCMDIR)/bmin.dynarray.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.list.pcm: $(BMIN_MOD)/bmin.list.cppm $(PCMDIR)/bmin.core.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.queue.pcm: $(BMIN_MOD)/bmin.queue.cppm $(PCMDIR)/bmin.dynarray.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.hash.pcm: $(BMIN_MOD)/bmin.hash.cppm $(PCMDIR)/bmin.string.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.map.pcm: $(BMIN_MOD)/bmin.map.cppm $(PCMDIR)/bmin.hash.pcm $(PCMDIR)/bmin.list.pcm $(PCMDIR)/bmin.dynarray.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.stringstream.pcm: $(BMIN_MOD)/bmin.stringstream.cppm $(PCMDIR)/bmin.string.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.string_interop.pcm: $(BMIN_MOD)/bmin.string_interop.cppm $(PCMDIR)/bmin.string.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/bmin.containers.pcm: $(BMIN_MOD)/bmin.containers.cppm \
-		$(PCMDIR)/bmin.string.pcm $(PCMDIR)/bmin.unique_ptr.pcm \
-		$(PCMDIR)/bmin.dynarray.pcm $(PCMDIR)/bmin.list.pcm \
-		$(PCMDIR)/bmin.queue.pcm $(PCMDIR)/bmin.hash.pcm \
-		$(PCMDIR)/bmin.map.pcm $(PCMDIR)/bmin.stringstream.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
 
 # --- sdl2w precompile ---
 
-$(PCMDIR)/sdl2w.defines.pcm: $(SDL2W_MOD)/sdl2w.defines.cppm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
+define SDL2W_EM_PCM_RULE
+$(PCMDIR)/$(1).pcm: \
+		$(SDL2W_MOD)/$(1).cppm \
+		$(patsubst %,$(PCMDIR)/%.pcm,$(SDL2W_DEPS_$(1))) \
+		$(SDL2W_CACHE_STAMP)
+	$$(CXX) $$(FLAGS) --precompile $$< -o $$@
+endef
 
-$(PCMDIR)/sdl2w.logger.pcm: $(SDL2W_MOD)/sdl2w.logger.cppm $(PCMDIR)/sdl2w.defines.pcm \
-		$(PCMDIR)/bmin.string.pcm $(PCMDIR)/bmin.stringstream.pcm \
-		$(PCMDIR)/bmin.string_interop.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.types.pcm: $(SDL2W_MOD)/sdl2w.types.cppm $(PCMDIR)/sdl2w.defines.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.events.pcm: $(SDL2W_MOD)/sdl2w.events.cppm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.animation.pcm: $(SDL2W_MOD)/sdl2w.animation.cppm $(PCMDIR)/sdl2w.types.pcm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.store.pcm: $(SDL2W_MOD)/sdl2w.store.cppm $(PCMDIR)/sdl2w.animation.pcm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.draw.pcm: $(SDL2W_MOD)/sdl2w.draw.cppm $(PCMDIR)/sdl2w.animation.pcm $(PCMDIR)/sdl2w.store.pcm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.assets.pcm: $(SDL2W_MOD)/sdl2w.assets.cppm $(PCMDIR)/sdl2w.draw.pcm $(PCMDIR)/sdl2w.store.pcm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.l10n.pcm: $(SDL2W_MOD)/sdl2w.l10n.cppm $(PCMDIR)/sdl2w.assets.pcm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.emscripten.pcm: $(SDL2W_MOD)/sdl2w.emscripten.cppm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.window.pcm: $(SDL2W_MOD)/sdl2w.window.cppm \
-		$(PCMDIR)/sdl2w.draw.pcm $(PCMDIR)/sdl2w.events.pcm $(PCMDIR)/sdl2w.store.pcm \
-		$(PCMDIR)/sdl2w.assets.pcm $(PCMDIR)/sdl2w.emscripten.pcm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.init.pcm: $(SDL2W_MOD)/sdl2w.init.cppm $(PCMDIR)/sdl2w.window.pcm $(PCMDIR)/sdl2w.l10n.pcm $(PCMDIR)/sdl2w.logger.pcm | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
-
-$(PCMDIR)/sdl2w.pcm: $(SDL2W_MOD)/sdl2w.cppm $(patsubst %,$(PCMDIR)/%.pcm,$(SDL2W_IFACE_NAMES)) | $(PCMDIR)
-	$(CXX) $(FLAGS) --precompile $< -o $@
+$(foreach module,$(SDL2W_INTERFACE_MODULES),\
+  $(eval $(call SDL2W_EM_PCM_RULE,$(module))))
 
 # --- pcm / impl -> object ---
-
-$(BMIN_OBJDIR)/%.o: $(PCMDIR)/%.pcm | $(BMIN_OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
 
 $(SDL2W_OBJDIR)/%.o: $(PCMDIR)/%.pcm | $(SDL2W_OBJDIR)
 	$(CXX) $(FLAGS) -c $< -o $@
@@ -163,17 +77,5 @@ $(SDL2W_OBJDIR)/%.o: $(PCMDIR)/%.pcm | $(SDL2W_OBJDIR)
 $(SDL2W_OBJDIR)/%-impl.o: $(SDL2W_MOD)/%.cpp $(PCMDIR)/%.pcm | $(SDL2W_OBJDIR)
 	$(CXX) $(FLAGS) -c $< -o $@
 
-$(BMIN_OBJDIR)/bmin.core-impl.o: $(BMIN_MOD)/bmin.core.cpp $(PCMDIR)/bmin.core.pcm | $(BMIN_OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(BMIN_OBJDIR)/bmin.string-impl.o: $(BMIN_MOD)/bmin.string.cpp $(PCMDIR)/bmin.string.pcm | $(BMIN_OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(BMIN_OBJDIR)/bmin.stringstream-impl.o: $(BMIN_MOD)/bmin.stringstream.cpp $(PCMDIR)/bmin.stringstream.pcm | $(BMIN_OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
-$(BMIN_OBJDIR)/bmin.string_interop-impl.o: $(BMIN_MOD)/bmin.string_interop.cpp $(PCMDIR)/bmin.string_interop.pcm | $(BMIN_OBJDIR)
-	$(CXX) $(FLAGS) -c $< -o $@
-
 clean:
-	rm -rf $(PCMDIR) $(BMIN_OBJDIR) $(SDL2W_OBJDIR)
+	rm -rf $(PCMDIR) .bmin-bmi $(SDL2W_OBJDIR)

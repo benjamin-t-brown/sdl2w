@@ -60,7 +60,7 @@ SDL flags:
 ```makefile
 include lib/sdl2w/modules/make/use.mk
 
-main.o: main.cpp sdl2w-bmi
+main.o: main.cpp | sdl2w-bmi
 	$(CXX) $(SDL2W_CXXFLAGS) -c main.cpp -o $@
 
 yourgame: main.o

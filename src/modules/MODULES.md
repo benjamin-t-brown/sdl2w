@@ -38,7 +38,7 @@ sdl2w/modules/make/use.mk
 ```makefile
 include path/to/sdl2w/modules/make/use.mk
 
-main.o: main.cpp sdl2w-bmi
+main.o: main.cpp | sdl2w-bmi
 	$(CXX) $(SDL2W_CXXFLAGS) -c main.cpp -o $@
 
 app: main.o
@@ -56,10 +56,14 @@ The convenience spellings are exported functions and constants rather than
 macros. `LOG_LINE` and `THROW_RUNTIME_ERROR` preserve the call site with
 `std::source_location`. Classic consumers retain the macros from the headers.
 
-Prefer `import sdl2w` unless a smaller dependency surface matters. Import
-`bmin.string_interop` separately for its `std::string_view` helpers.
+`import sdl2w` is the supported public entry point. The `sdl2w.*` component
+module names are implementation details used to organize the library build and
+may change without compatibility guarantees. Import `bmin.string_interop`
+separately for its `std::string_view` helpers.
 
-BMIs are compiler-local and are intentionally rebuilt by `use.mk`. The native
+BMIs are compiler-local and are intentionally rebuilt by `use.mk`. Cache stamps
+include the selected compiler, compiler version, and module flags, so changing
+toolchains or flags invalidates incompatible BMIs automatically. The native
 bmin + SDL2W module pair currently targets GCC 15; on macOS the helpers select
 `g++-15` because `/usr/bin/g++` is Apple Clang. Every `.cppm` producer receives
 `-x c++` explicitly.
@@ -68,7 +72,7 @@ bmin + SDL2W module pair currently targets GCC 15; on macOS the helpers select
 
 ```bash
 make -C src native                 # builds and installs both APIs
-make -C src/modules check          # module smoke + every direct import
+make -C src/modules check          # graph, public import, internal components
 make -C example clean all          # same application, both APIs
 make -C src test                   # runs all three checks above
 ```

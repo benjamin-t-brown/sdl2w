@@ -25,6 +25,14 @@ BMIN_BUILT_HEADER_LIB = $(BMIN_BUILD_OUT)/lib/libbmin.a
 BMIN_BUILT_MODULE_LIB = $(BMIN_BUILD_OUT)/lib/libbmin_modules.a
 BMIN_BUILT_INCLUDE = $(BMIN_BUILD_OUT)/include
 BMIN_BUILT_MODULES = $(BMIN_BUILD_OUT)/modules
+BMIN_HEADER_INPUTS = \
+	$(wildcard $(BMIN_SRC)/lib/*.cpp) \
+	$(wildcard $(BMIN_SRC)/lib/*.h) \
+	$(wildcard $(BMIN_SRC)/lib/internal/*)
+BMIN_MODULE_INPUTS = \
+	$(wildcard $(BMIN_SRC)/modules/*.cppm) \
+	$(wildcard $(BMIN_SRC)/modules/*.cpp) \
+	$(wildcard $(BMIN_SRC)/modules/make/*)
 
 DEPS_DIR = .
 DEPS_BMIN_DIR = $(DEPS_DIR)/bmin
@@ -88,14 +96,18 @@ $(BMIN_REPO)/.git:
 		git clone --depth 1 --branch $(BMIN_REF) $(BMIN_URL) $(BMIN_REPO); \
 	fi
 
-$(BMIN_BUILT_HEADER_LIB): $(BMIN_REPO)/.git
+$(BMIN_BUILT_HEADER_LIB): $(BMIN_REPO)/.git $(BMIN_HEADER_INPUTS)
 	@echo "Building both bmin APIs for the SDL2W bundle..."
 	@$(MAKE) -C $(BMIN_SRC) native \
 		CXX="$(CXX)" \
 		BMIN_MODULE_CXXFLAGS="$(SDL2W_MODULE_CXXFLAGS)" \
 		BMIN_MODULE_INTERFACE_FLAGS="$(SDL2W_MODULE_INTERFACE_FLAGS)"
 
-$(BMIN_BUILT_MODULE_LIB): $(BMIN_BUILT_HEADER_LIB)
+$(BMIN_BUILT_MODULE_LIB): $(BMIN_BUILT_HEADER_LIB) $(BMIN_MODULE_INPUTS)
+	@$(MAKE) -C $(BMIN_SRC)/modules install \
+		CXX="$(CXX)" \
+		BMIN_MODULE_CXXFLAGS="$(SDL2W_MODULE_CXXFLAGS)" \
+		BMIN_MODULE_INTERFACE_FLAGS="$(SDL2W_MODULE_INTERFACE_FLAGS)"
 	@test -f $@
 
 $(DEPS_BMIN_STAMP): $(BMIN_BUILT_HEADER_LIB) $(BMIN_BUILT_MODULE_LIB)
@@ -133,6 +145,10 @@ wasm: $(DEPS_BMIN_STAMP)
 all: dist
 
 test: native
+	@$(MAKE) -C $(BMIN_SRC)/modules check \
+		CXX="$(CXX)" \
+		BMIN_MODULE_CXXFLAGS="$(SDL2W_MODULE_CXXFLAGS)" \
+		BMIN_MODULE_INTERFACE_FLAGS="$(SDL2W_MODULE_INTERFACE_FLAGS)"
 	@$(MAKE) -C modules check
 	@$(MAKE) -C ../example clean all
 

@@ -44,10 +44,10 @@ all: modules headers
 modules: $(EXE)$(EXE_SUFFIX)
 headers: $(HEADER_EXE)$(EXE_SUFFIX)
 
-$(MAIN_OBJ): main.cpp sdl2w-bmi
+$(MAIN_OBJ): main.cpp | sdl2w-bmi
 	$(CXX) $(SDL2W_CXXFLAGS) -DSDL2W_USE_MODULES=1 -c main.cpp -o $@
 
-$(EXE)$(EXE_SUFFIX): $(MAIN_OBJ) sdl2w-bmi
+$(EXE)$(EXE_SUFFIX): $(MAIN_OBJ) | sdl2w-bmi
 	$(CXX) $(SDL2W_CXXFLAGS) -o $@ $(MAIN_OBJ) $(SDL2W_LDLIBS)
 
 $(SDL2W_HEADER_LIB):
