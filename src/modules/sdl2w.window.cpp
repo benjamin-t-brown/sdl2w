@@ -12,14 +12,16 @@ module;
 
 #if __has_include(<SDL.h>)
 #include <SDL.h>
+#include <SDL_image.h>
 #include <SDL_mixer.h>
 #include <SDL_ttf.h>
 #else
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_ttf.h>
 #endif
-
+#include <algorithm>
 
 module sdl2w.window;
 import sdl2w.defines;
@@ -40,35 +42,69 @@ Window* jsWindow = nullptr;
 bool Window::_soundEnabled = true;
 bool Window::_inputEnabled = true;
 bool Window::_isInit = false;
+bool Window::_audioInitialized = false;
+bool Window::_imageInitialized = false;
+int Window::_mixerCodecFlags = 0;
+Window* Window::_activeWindow = nullptr;
 
 bool Window::isInit() { return _isInit; }
 
 Window::Window(Store& store, const Window2Params& params)
     : store(store), draw(store) {
   if (!_isInit) {
-    LOG(WARN) << "[sdl2w] SDL is not initialized, so Window cannot be created."
-              << Logger::endl;
-    return;
+    THROW_RUNTIME_ERROR("[sdl2w] Call Window::init() before creating a Window");
   }
+  if (_activeWindow != nullptr)
+    THROW_RUNTIME_ERROR("[sdl2w] Only one Window may exist at a time");
+  if (params.w <= 0 || params.h <= 0 || params.renderW <= 0 ||
+      params.renderH <= 0)
+    THROW_RUNTIME_ERROR("[sdl2w] Window dimensions must be positive");
 
   LOG(DEBUG) << "[sdl2w] Create window:"
              << " " << params.w << " " << params.h << Logger::endl;
 
-  // create window and renderer
-  sdlWindow = SDL_CreateWindow(params.title.cStr(),
-                               params.x,
-                               params.y,
-                               params.w,
-                               params.h,
-                               SDL_WINDOW_SHOWN);
-  Uint32 rendererFlags = SDL_RENDERER_PRESENTVSYNC;
+  SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+  Uint32 windowFlags = SDL_WINDOW_SHOWN;
+  if (params.resizable)
+    windowFlags |= SDL_WINDOW_RESIZABLE;
+  if (params.borderless)
+    windowFlags |= SDL_WINDOW_BORDERLESS;
+  if (params.fullscreen)
+    windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+  sdlWindow = SDL_CreateWindow(
+      params.title.cStr(), params.x, params.y, params.w, params.h, windowFlags);
+  if (!sdlWindow)
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Could not create window: ") +
+                        SDL_GetError());
+  Uint32 rendererFlags = params.vsync ? SDL_RENDERER_PRESENTVSYNC : 0;
   rendererFlags |= (params.mode == DrawMode::GPU) ? SDL_RENDERER_ACCELERATED
                                                   : SDL_RENDERER_SOFTWARE;
   sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, rendererFlags);
-  SDL_RenderSetLogicalSize(sdlRenderer, params.renderW, params.renderH);
-  SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // or "nearest"
+  if (!sdlRenderer) {
+    SDL_DestroyWindow(sdlWindow);
+    sdlWindow = nullptr;
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Could not create renderer: ") +
+                        SDL_GetError());
+  }
+  if (SDL_RenderSetLogicalSize(sdlRenderer, params.renderW, params.renderH) !=
+      0) {
+    SDL_DestroyRenderer(sdlRenderer);
+    SDL_DestroyWindow(sdlWindow);
+    sdlRenderer = nullptr;
+    sdlWindow = nullptr;
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Could not set logical size: ") +
+                        SDL_GetError());
+  }
   Uint32 format = SDL_GetWindowPixelFormat(sdlWindow);
-  draw.setSdlRenderer(sdlRenderer, params.renderW, params.renderH, format);
+  try {
+    draw.setSdlRenderer(sdlRenderer, params.renderW, params.renderH, format);
+  } catch (...) {
+    SDL_DestroyRenderer(sdlRenderer);
+    SDL_DestroyWindow(sdlWindow);
+    sdlRenderer = nullptr;
+    sdlWindow = nullptr;
+    throw;
+  }
 
   Mix_AllocateChannels(numSoundChannels);
 
@@ -76,10 +112,12 @@ Window::Window(Store& store, const Window2Params& params)
   windowHeight = params.h;
   renderWidth = params.renderW;
   renderHeight = params.renderH;
+  maxDeltaTime = params.maxDeltaTime > 0.0 ? params.maxDeltaTime : 100.0;
 
   AssetLoader::initFs();
 
   emshelpers::setEmscriptenWindow(this);
+  _activeWindow = this;
 #ifdef __EMSCRIPTEN__
   jsWindow = this;
   {
@@ -89,12 +127,27 @@ Window::Window(Store& store, const Window2Params& params)
 #endif
 }
 
-Window::~Window() {}
+Window::~Window() {
+  if (_activeWindow != this)
+    return;
+  events.disableControllers();
+  store.clear();
+  draw.releaseRendererResources();
+  SDL_DestroyRenderer(sdlRenderer);
+  SDL_DestroyWindow(sdlWindow);
+  sdlRenderer = nullptr;
+  sdlWindow = nullptr;
+  emshelpers::setEmscriptenWindow(nullptr);
+#ifdef __EMSCRIPTEN__
+  jsWindow = nullptr;
+#endif
+  _activeWindow = nullptr;
+}
 
 bool Window::isReady() const { return _isInit && AssetLoader::fsReady; }
 
 void Window::setSoundPct(int pct) {
-  soundPct = pct;
+  soundPct = std::clamp(pct, 0, 100);
   if (!_soundEnabled) {
     return;
   }
@@ -103,7 +156,7 @@ void Window::setSoundPct(int pct) {
 }
 
 void Window::setMusicPct(int pct) {
-  musicPct = pct;
+  musicPct = std::clamp(pct, 0, 100);
   if (!_soundEnabled) {
     return;
   }
@@ -121,7 +174,7 @@ void Window::playSound(std::string_view name) {
   const int channel = Mix_PlayChannel(-1, sound, 0);
   if (channel == -1) {
     LOG(WARN) << "[sdl2w] Unable to play sound in channel.  sound=" << name
-              << " err=" << SDL_GetError() << Logger::endl;
+              << " err=" << Mix_GetError() << Logger::endl;
     return;
   }
   Mix_Volume(channel,
@@ -140,7 +193,11 @@ void Window::playMusic(std::string_view name) {
               << " err=" << SDL_GetError() << Logger::endl;
     return;
   }
-  Mix_PlayMusic(music, -1);
+  if (Mix_PlayMusic(music, -1) != 0) {
+    LOG(WARN) << "[sdl2w] Unable to play music. music=" << name
+              << " err=" << Mix_GetError() << Logger::endl;
+    return;
+  }
   Mix_VolumeMusic(
       static_cast<int>(double(musicPct) / 100.0 * double(MIX_MAX_VOLUME)));
 }
@@ -166,7 +223,7 @@ std::pair<int, int> Window::getRenderDims() const {
   return std::make_pair(renderWidth, renderHeight);
 }
 
-void Window::init() {
+void Window::init(int audioChannels) {
   if (_isInit) {
     LOG(WARN) << "[sdl2w] SDL is already initialized." << Logger::endl;
     return;
@@ -174,24 +231,42 @@ void Window::init() {
 
   LOG(DEBUG) << "[sdl2w] Init SDL" << Logger::endl;
 
-  // SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
-  //          SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+  if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
+               SDL_INIT_EVENTS) != 0)
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] SDL could not initialize: ") +
+                        SDL_GetError());
 
-  SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+  if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0) {
+    SDL_Quit();
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] SDL_image PNG support failed: ") +
+                        IMG_GetError());
+  }
+  _imageInitialized = true;
 
   // initialize fonts
   if (TTF_Init() < 0) {
     LOG_LINE(ERROR) << "[sdl2w] SDL_ttf could not initialize! "
                     << TTF_GetError() << Logger::endl;
+    IMG_Quit();
+    _imageInitialized = false;
+    SDL_Quit();
     THROW_RUNTIME_ERROR(
         bmin::String(FAIL_ERROR_TEXT.data(), FAIL_ERROR_TEXT.size()));
   }
 
-  // initialize audio
-  if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 1, 1024) < 0) {
-    LOG_LINE(ERROR) << "[sdl2w] SDL_mixer could not initialize! "
-                    << Mix_GetError() << Logger::endl;
+  _mixerCodecFlags = Mix_Init(MIX_INIT_OGG);
+  if ((_mixerCodecFlags & MIX_INIT_OGG) == 0)
+    LOG(WARN) << "[sdl2w] OGG support is unavailable: " << Mix_GetError()
+              << Logger::endl;
+  const int channels = audioChannels == 1 ? 1 : 2;
+  if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, channels, 1024) <
+      0) {
+    LOG(WARN) << "[sdl2w] Audio is unavailable; continuing without sound: "
+              << Mix_GetError() << Logger::endl;
     _soundEnabled = false;
+  } else {
+    _audioInitialized = true;
+    _soundEnabled = true;
   }
 
   _isInit = true;
@@ -199,11 +274,22 @@ void Window::init() {
 
 void Window::unInit() {
   if (_isInit) {
+    if (_activeWindow != nullptr) {
+      LOG(WARN) << "[sdl2w] Destroy the active Window before Window::unInit()"
+                << Logger::endl;
+      return;
+    }
     LOG(DEBUG) << "[sdl2w] UnInit SDL" << Logger::endl;
 
-    TTF_Quit();
-    Mix_CloseAudio();
+    if (_audioInitialized)
+      Mix_CloseAudio();
+    _audioInitialized = false;
     Mix_Quit();
+    _mixerCodecFlags = 0;
+    TTF_Quit();
+    if (_imageInitialized)
+      IMG_Quit();
+    _imageInitialized = false;
     SDL_Quit();
     _isInit = false;
   }
@@ -213,16 +299,17 @@ void Window::renderLoop() {
   const Uint64 div = 1000;
   const Uint64 nowMicroSeconds = SDL_GetPerformanceCounter();
   auto freq = SDL_GetPerformanceFrequency();
-  now = (nowMicroSeconds * div) / freq;
-
   if (!static_cast<bool>(freq)) {
     freq = 1;
   }
+  now = (nowMicroSeconds * div) / freq;
   if (firstLoop) {
     deltaTime = 16.6666;
   } else {
     deltaTime = static_cast<double>((nowMicroSeconds - lastFrameTime) * div) /
                 static_cast<double>(freq);
+    if (deltaTime > maxDeltaTime)
+      deltaTime = maxDeltaTime;
   }
 
   lastFrameTime = nowMicroSeconds;
@@ -233,10 +320,6 @@ void Window::renderLoop() {
 
   SDL_Event e;
   while (SDL_PollEvent(&e) != 0) {
-    // empty event queue
-    if (!_inputEnabled) {
-      continue;
-    }
 #ifdef __EMSCRIPTEN__
     if (e.type == SDL_QUIT) {
       LOG(WARN) << "[sdl2w] QUIT is overridden in EMSCRIPTEN" << Logger::endl;
@@ -245,35 +328,58 @@ void Window::renderLoop() {
 #else
     if (e.type == SDL_QUIT) {
       isLooping = false;
-      break;
-    } else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
-      break;
-    } else if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
-      break;
+    } else if (e.type == SDL_WINDOWEVENT &&
+               e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+      lastFrameTime = SDL_GetPerformanceCounter();
+    } else if (e.type == SDL_WINDOWEVENT &&
+               e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+      events.clearInputState();
+    } else if (e.type == SDL_WINDOWEVENT &&
+               e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+      windowWidth = e.window.data1;
+      windowHeight = e.window.data2;
     }
 #endif
-    else if (e.type == SDL_KEYDOWN) {
+    if (!_inputEnabled) {
+      events.handleEvent(e);
+      continue;
+    }
+    if (e.type == SDL_KEYDOWN) {
       events.keydown(e.key.keysym.sym);
     } else if (e.type == SDL_KEYUP) {
       events.keyup(e.key.keysym.sym);
     } else if (e.type == SDL_MOUSEMOTION) {
-      int x, y;
-      SDL_GetMouseState(&x, &y);
+      int x = e.motion.x, y = e.motion.y;
+      float lx = 0, ly = 0;
+      SDL_RenderWindowToLogical(sdlRenderer, x, y, &lx, &ly);
+      x = static_cast<int>(lx);
+      y = static_cast<int>(ly);
       events.mousemove(x, y);
       mousePos = std::make_pair(x, y);
     } else if (e.type == SDL_MOUSEBUTTONDOWN) {
-      int x, y;
-      SDL_GetMouseState(&x, &y);
+      int x = e.button.x, y = e.button.y;
+      float lx = 0, ly = 0;
+      SDL_RenderWindowToLogical(sdlRenderer, x, y, &lx, &ly);
+      x = static_cast<int>(lx);
+      y = static_cast<int>(ly);
       events.mousedown(x, y, static_cast<int>(e.button.button));
     } else if (e.type == SDL_MOUSEBUTTONUP) {
-      int x, y;
-      SDL_GetMouseState(&x, &y);
+      int x = e.button.x, y = e.button.y;
+      float lx = 0, ly = 0;
+      SDL_RenderWindowToLogical(sdlRenderer, x, y, &lx, &ly);
+      x = static_cast<int>(lx);
+      y = static_cast<int>(ly);
       events.mouseup(x, y, static_cast<int>(e.button.button));
     }
     if (e.type == SDL_MOUSEWHEEL) {
-      events.wheel = e.wheel.y;
+      events.wheel =
+          e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -e.wheel.y : e.wheel.y;
       int x, y;
       SDL_GetMouseState(&x, &y);
+      float logicalX = 0, logicalY = 0;
+      SDL_RenderWindowToLogical(sdlRenderer, x, y, &logicalX, &logicalY);
+      x = static_cast<int>(logicalX);
+      y = static_cast<int>(logicalY);
       events.mousewheel(x, y, events.wheel);
     } else {
       events.wheel = 0;
@@ -304,6 +410,36 @@ void Window::renderLoop() {
 
 void Window::setInitTimeMax(int max) { initTimeMax = max; }
 
+double Window::getAverageFrameTime() const {
+  if (pastFrameTimes.empty())
+    return 0.0;
+  double total = 0.0;
+  bmin::Queue<double> copy = pastFrameTimes;
+  while (!copy.empty()) {
+    total += copy.front();
+    copy.pop();
+  }
+  return total / static_cast<double>(pastFrameTimes.size());
+}
+double Window::getFps() const {
+  const double average = getAverageFrameTime();
+  return average > 0.0 ? 1000.0 / average : 0.0;
+}
+void Window::setMaxDeltaTime(double ms) {
+  if (ms > 0.0)
+    maxDeltaTime = ms;
+}
+void Window::setTitle(std::string_view title) {
+  bmin::String value(title.data(), title.size());
+  SDL_SetWindowTitle(sdlWindow, value.cStr());
+}
+void Window::setFullscreen(bool enabled) {
+  if (SDL_SetWindowFullscreen(sdlWindow,
+                              enabled ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) != 0)
+    LOG(WARN) << "[sdl2w] Could not change fullscreen state: " << SDL_GetError()
+              << Logger::endl;
+}
+
 #ifdef __EMSCRIPTEN__
 void RenderLoopCallback(void* arg) { static_cast<Window*>(arg)->renderLoop(); }
 #endif
@@ -315,7 +451,7 @@ void Window::startRenderLoop(std::function<bool(void)> _initializingCb,
   initializingCb = _initializingCb;
   loopCb = _loopCb;
   onInitCb = _onInitCb;
-  Window::now = SDL_GetPerformanceCounter();
+  Window::lastFrameTime = SDL_GetPerformanceCounter();
 
 #ifdef __EMSCRIPTEN__
   emscripten_set_main_loop_arg(&RenderLoopCallback, this, -1, 1);
@@ -333,6 +469,8 @@ extern "C" {
 
 EMSCRIPTEN_KEEPALIVE
 void setVolume(int volumePct) {
+  if (sdl2w::jsWindow == nullptr)
+    return;
   sdl2w::jsWindow->setSoundPct(double(volumePct));
   sdl2w::jsWindow->setMusicPct(double(volumePct));
   sdl2w::log(sdl2w::DEBUG) << "Set master volume:" << volumePct << "%"
@@ -340,6 +478,8 @@ void setVolume(int volumePct) {
 }
 EMSCRIPTEN_KEEPALIVE
 void enableSound() {
+  if (sdl2w::jsWindow == nullptr)
+    return;
   sdl2w::Window::_soundEnabled = true;
   int volumePct = sdl2w::jsWindow->getSoundPct();
   int musicPct = sdl2w::jsWindow->getMusicPct();
@@ -356,11 +496,15 @@ void disableSound() {
 }
 EMSCRIPTEN_KEEPALIVE
 void setKeyDown(int key) {
+  if (sdl2w::jsWindow == nullptr)
+    return;
   sdl2w::jsWindow->getEvents().keydown(key);
   sdl2w::log(sdl2w::DEBUG) << "External set key down: " << key << sdl2w::endl;
 }
 EMSCRIPTEN_KEEPALIVE
 void setKeyUp(int key) {
+  if (sdl2w::jsWindow == nullptr)
+    return;
   sdl2w::jsWindow->getEvents().keyup(key);
   sdl2w::log(sdl2w::DEBUG) << "External set key up: " << key << sdl2w::endl;
 }
@@ -372,7 +516,10 @@ void setKeyStatus(int status) {
 }
 EMSCRIPTEN_KEEPALIVE
 void sendEvent(int event, int payload) {
-  sdl2w::jsWindow->pushExternalEvent(event, bmin::toString(payload).sliceView());
+  if (sdl2w::jsWindow == nullptr)
+    return;
+  sdl2w::jsWindow->pushExternalEvent(event,
+                                     bmin::toString(payload).sliceView());
   sdl2w::log(sdl2w::DEBUG) << "External event received: " << event << ":"
                            << payload << sdl2w::endl;
 }

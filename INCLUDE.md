@@ -87,3 +87,10 @@ generated Clang PCMs.
 
 See [src/modules/MODULES.md](src/modules/MODULES.md) and the dual-mode
 [example](example/Makefile).
+
+## Behavioral parity
+
+`make -C tests clean all run` compiles one test source against the classic
+headers and again through `import sdl2w`. This catches public API drift while
+exercising logging, localization, animation/store ownership, asset validation,
+events, the one-window lifecycle, lazy fonts, and both text-cache paths.

@@ -1,0 +1,6 @@
+Pic,hero,does-not-need-to-exist-for-validation.png
+Sprites,hero,1,16,16
+Anim,idle,loop
+hero_0 100
+EndAnim
+Sound,click,click.wav

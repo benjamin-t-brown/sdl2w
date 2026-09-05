@@ -22,7 +22,7 @@ class L10n {
 public:
   static void init(std::initializer_list<std::string_view> langs = {"en"});
   static void loadLanguage(std::string_view lang, std::string_view langText);
-  static void setLanguage(std::string_view lang);
+  static bool setLanguage(std::string_view lang);
   static void setEnabled(bool enabled);
   static bool isEnabled();
   static const bmin::Map<size_t, bmin::String>& getStrings();
@@ -31,7 +31,7 @@ public:
   static size_t hash(std::string_view str);
 };
 
-}
+} // namespace sdl2w
 
 // These are typed module declarations, not macros. Their global spelling is
 // deliberate so module and classic consumers can write the same source code.

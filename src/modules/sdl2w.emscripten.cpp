@@ -7,7 +7,6 @@ module;
 #include <emscripten/html5.h>
 #endif
 
-
 module sdl2w.emscripten;
 import sdl2w.logger;
 import bmin.string;
@@ -26,9 +25,13 @@ void setEmscriptenWindow(void* window) {
 
 void notifyTargetWindowSize(int width, int height) {
 #ifdef __EMSCRIPTEN__
-  bmin::StringStream ss;
-  ss << "window.Lib.notifyTargetWindowSize(" << width << ", " << height << ")";
-  emscripten_run_script(ss.str().cStr());
+  EM_ASM(
+      {
+        if (window.Lib && window.Lib.notifyTargetWindowSize)
+          window.Lib.notifyTargetWindowSize($0, $1);
+      },
+      width,
+      height);
 #else
   (void)width;
   (void)height;
@@ -45,27 +48,45 @@ bool isEmscriptenEnv() {
 
 void notifyGameStarted() {
 #ifdef __EMSCRIPTEN__
-  emscripten_run_script("window.Lib.notifyGameStarted()");
+  EM_ASM({
+    if (window.Lib && window.Lib.notifyGameStarted)
+      window.Lib.notifyGameStarted();
+  });
 #endif
 }
 void notifyGameReady() {
 #ifdef __EMSCRIPTEN__
-  emscripten_run_script("window.Lib.notifyGameReady()");
+  EM_ASM({
+    if (window.Lib && window.Lib.notifyGameReady)
+      window.Lib.notifyGameReady();
+  });
 #endif
 }
 void notifyGameCompleted(std::string_view result) {
 #ifdef __EMSCRIPTEN__
-  bmin::String script = bmin::String("window.Lib.notifyGameCompleted('") +
-                         bmin::String(result.data(), result.size()) + "')";
-  emscripten_run_script(script.cStr());
+  const bmin::String value(result.data(), result.size());
+  EM_ASM(
+      {
+        if (window.Lib && window.Lib.notifyGameCompleted)
+          window.Lib.notifyGameCompleted(UTF8ToString($0));
+      },
+      value.cStr());
+#else
+  (void)result;
 #endif
 }
 void notifyGameGeneric(std::string_view payload) {
 #ifdef __EMSCRIPTEN__
-  bmin::String script = bmin::String("window.Lib.notifyGameGeneric('") +
-                         bmin::String(payload.data(), payload.size()) + "')";
-  emscripten_run_script(script.cStr());
+  const bmin::String value(payload.data(), payload.size());
+  EM_ASM(
+      {
+        if (window.Lib && window.Lib.notifyGameGeneric)
+          window.Lib.notifyGameGeneric(UTF8ToString($0));
+      },
+      value.cStr());
+#else
+  (void)payload;
 #endif
 }
 
-}
+} // namespace emshelpers

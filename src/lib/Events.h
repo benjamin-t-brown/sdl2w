@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Defines.h"
 #include "bmin/DynArray.h"
 #include "bmin/Map.h"
 #include "bmin/String.h"
@@ -20,6 +21,11 @@ public:
   std::function<void(std::string_view, int)> onkeydown;
   std::function<void(std::string_view, int)> onkeyup;
   std::function<void(std::string_view, int)> onkeypress;
+  std::function<void(int, int)> oncontrollerbuttondown;
+  std::function<void(int, int)> oncontrollerbuttonup;
+  std::function<void(int, int, double)> oncontrolleraxis;
+  std::function<void(int)> oncontrollerconnected;
+  std::function<void(int)> oncontrollerdisconnected;
 
   EventRoute();
 };
@@ -37,17 +43,65 @@ enum KeyboardEventCb {
   ON_KEY_UP,
 };
 
+enum ControllerButtonEventCb {
+  ON_CONTROLLER_BUTTON_DOWN,
+  ON_CONTROLLER_BUTTON_UP,
+};
+
+enum ControllerButton {
+  CONTROLLER_A,
+  CONTROLLER_B,
+  CONTROLLER_X,
+  CONTROLLER_Y,
+  CONTROLLER_BACK,
+  CONTROLLER_GUIDE,
+  CONTROLLER_START,
+  CONTROLLER_LEFT_STICK,
+  CONTROLLER_RIGHT_STICK,
+  CONTROLLER_LEFT_SHOULDER,
+  CONTROLLER_RIGHT_SHOULDER,
+  CONTROLLER_DPAD_UP,
+  CONTROLLER_DPAD_DOWN,
+  CONTROLLER_DPAD_LEFT,
+  CONTROLLER_DPAD_RIGHT,
+  CONTROLLER_BUTTON_COUNT,
+};
+
+enum ControllerAxis {
+  CONTROLLER_LEFT_X,
+  CONTROLLER_LEFT_Y,
+  CONTROLLER_RIGHT_X,
+  CONTROLLER_RIGHT_Y,
+  CONTROLLER_TRIGGER_LEFT,
+  CONTROLLER_TRIGGER_RIGHT,
+  CONTROLLER_AXIS_COUNT,
+};
+
 class Events {
 private:
+  struct ControllerState {
+    bmin::UniquePtr<SDL_GameController, SDL_Deleter> controller;
+    int instanceId = -1;
+    bool buttons[CONTROLLER_BUTTON_COUNT]{};
+    double axes[CONTROLLER_AXIS_COUNT]{};
+  };
+
   bmin::DynArray<bmin::UniquePtr<EventRoute>> routes;
   bmin::Map<bmin::String, bool> keys;
   bool shouldPushRoute = false;
   bool shouldPopRoute = false;
   std::function<void(SDL_Event)> cb;
+  bmin::DynArray<ControllerState> controllers;
+  bool controllersEnabled = false;
+  double controllerDeadZone = 0.15;
 
   bmin::UniquePtr<EventRoute>& currentRoute() {
     return routes[routes.size() - 1];
   }
+  int controllerPlayerForInstance(int instanceId) const;
+  void openController(int deviceIndex);
+  void closeController(int instanceId);
+  void processControllerEvent(const SDL_Event& event);
 
 public:
   bool isMouseDown = false;
@@ -76,6 +130,11 @@ public:
                      std::function<void(int, int, int)> cb);
   void setKeyboardEvent(KeyboardEventCb kEventCb,
                         std::function<void(std::string_view, int)> cb);
+  void setControllerButtonEvent(ControllerButtonEventCb event,
+                                std::function<void(int, int)> cb);
+  void setControllerAxisEvent(std::function<void(int, int, double)> cb);
+  void setControllerConnectionEvents(std::function<void(int)> connected,
+                                     std::function<void(int)> disconnected);
 
   void mousedown(int x, int y, int button);
   void mouseup(int x, int y, int button);
@@ -86,6 +145,15 @@ public:
 
   void handleEvent(SDL_Event e);
   void setEventHandler(std::function<void(SDL_Event)> cbA);
+
+  bool enableControllers();
+  void disableControllers();
+  bool areControllersEnabled() const { return controllersEnabled; }
+  size_t getControllerCount() const;
+  bool isControllerButtonPressed(int player, ControllerButton button) const;
+  double getControllerAxis(int player, ControllerAxis axis) const;
+  void setControllerDeadZone(double deadZone);
+  void clearInputState();
 
   void update();
 };

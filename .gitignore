@@ -40,3 +40,4 @@ pcm.cache
 .sdl2w-bmi
 .source_ok
 dist
+/tests/sdl2w-tests-*

@@ -1,0 +1,3 @@
+Sprites,missing-picture,0,-1,16
+Anim,idle,loop
+missing_sprite nope

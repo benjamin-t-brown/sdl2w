@@ -74,7 +74,8 @@ bmin + SDL2W module pair currently targets GCC 15; on macOS the helpers select
 make -C src native                 # builds and installs both APIs
 make -C src/modules check          # graph, public import, internal components
 make -C example clean all          # same application, both APIs
-make -C src test                   # runs all three checks above
+make -C tests clean all run        # one behavioral suite through both APIs
+make -C src test                   # runs all checks above
 ```
 
 Wasm continues to compile the module sources with em++/Clang PCMs. GCC BMIs

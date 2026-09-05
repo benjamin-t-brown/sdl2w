@@ -2,6 +2,7 @@
 #include "Draw.h"
 #include "Logger.h"
 #include "Store.h"
+#include <cmath>
 
 namespace sdl2w {
 
@@ -48,19 +49,13 @@ Animation& Animation::operator=(const Animation& other) {
   return *this;
 }
 
-Animation::Animation(const AnimationDefinition& def, Store& store)
-    : name(""), t(0), totalDuration(0), spriteIndex(0), loop(true) {
-  for (size_t i = 0; i < def.sprites.size(); ++i) {
-    Sprite& sprite = store.getSprite(def.sprites[i].name.sliceView());
-    addSprite(def.sprites[i], sprite);
-  }
-  name = def.name;
-  loop = def.loop;
-}
-
 Animation::~Animation() {}
 bool Animation::isInitialized() const {
   return spriteDefinitions.size() > 0 && storedSprites.size() > 0;
+}
+
+bool Animation::isFinished() const {
+  return isInitialized() && !loop && t >= totalDuration;
 }
 
 const Sprite& Animation::getCurrentSprite() const {
@@ -86,6 +81,9 @@ bmin::String Animation::toString() const {
 
 void Animation::addSprite(const AnimSpriteDefinition& def,
                           const Sprite& sprite) {
+  if (def.duration <= 0) {
+    THROW_RUNTIME_ERROR("[sdl2w] Animation frame duration must be positive.");
+  }
   spriteDefinitions.pushBack(def);
   storedSprites.pushBack(sprite);
   totalDuration += def.duration;
@@ -94,10 +92,10 @@ void Animation::addSprite(const AnimSpriteDefinition& def,
 int Animation::getAnimIndex() const {
   const size_t numSprites = spriteDefinitions.size();
   if (numSprites > 0) {
-    unsigned int offsetDuration = static_cast<unsigned int>(t);
-    unsigned int currentDuration = 0;
+    const double offsetDuration = t;
+    double currentDuration = 0;
     for (size_t i = 0; i < numSprites; i++) {
-      currentDuration += static_cast<unsigned int>(spriteDefinitions[i].duration);
+      currentDuration += spriteDefinitions[i].duration;
       if (offsetDuration < currentDuration) {
         return static_cast<int>(i);
       }
@@ -108,21 +106,30 @@ int Animation::getAnimIndex() const {
   }
 }
 
-void Animation::start() { t = 0; }
+void Animation::start() {
+  t = 0;
+  spriteIndex = 0;
+}
 
-void Animation::update(int dt) {
-  if (spriteDefinitions.size()) {
-    t += dt;
-    if (loop && t > totalDuration) {
-      spriteIndex = 0;
-      if (totalDuration > 0) {
-        t = t % totalDuration;
-      } else {
-        t = 0;
-      }
-    }
-    spriteIndex = getAnimIndex();
+void Animation::update(double dt) {
+  if (!isInitialized() || dt == 0) {
+    return;
   }
+  if (dt < 0) {
+    LOG(WARN) << "[sdl2w] Ignoring negative animation delta for '" << name
+              << "': " << dt << Logger::endl;
+    return;
+  }
+
+  t += dt;
+  if (loop) {
+    if (t >= totalDuration) {
+      t = std::fmod(t, totalDuration);
+    }
+  } else if (t >= totalDuration) {
+    t = totalDuration;
+  }
+  spriteIndex = getAnimIndex();
 }
 
 AnimationDefinition::AnimationDefinition(std::string_view nameA,
@@ -130,6 +137,12 @@ AnimationDefinition::AnimationDefinition(std::string_view nameA,
     : name(nameA.data(), nameA.size()), loop(loopA) {}
 
 void AnimationDefinition::addSprite(std::string_view spriteName, int ms) {
+  if (ms <= 0) {
+    THROW_RUNTIME_ERROR(
+        bmin::String(
+            "[sdl2w] Animation frame duration must be positive for '") +
+        bmin::String(spriteName.data(), spriteName.size()) + "'.");
+  }
   AnimSpriteDefinition def;
   def.name = bmin::String(spriteName.data(), spriteName.size());
   def.duration = ms;

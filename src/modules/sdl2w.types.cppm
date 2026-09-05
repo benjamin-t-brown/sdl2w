@@ -9,7 +9,8 @@ module;
 #include <SDL_pixels.h>
 #include <SDL_stdinc.h>
 #else
-#error "Could not find SDL pixel/stdinc headers in either SDL2/ or root include paths"
+#error                                                                         \
+    "Could not find SDL pixel/stdinc headers in either SDL2/ or root include paths"
 #endif
 
 #include "sdl_fwd.h"
@@ -52,6 +53,7 @@ struct RenderTextParams {
   bool centered = false;
   double angleDeg = 0.;
   std::pair<double, double> scale = {1., 1.};
+  bool outlined = false;
 };
 
 struct Renderable {
@@ -75,4 +77,4 @@ enum DrawMode {
   GPU,
 };
 
-}
+} // namespace sdl2w

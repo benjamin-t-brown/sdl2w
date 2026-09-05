@@ -69,6 +69,7 @@ src_dir = root / "src"
 classic_dir = src_dir / "lib"
 example_dir = root / "example"
 tools_dir = root / "src" / "tools"
+tests_dir = root / "tests"
 
 # clangd --experimental-modules-support scans the CDB for every interface
 # that anything imports. Missing bmin .cppm entries make sdl2w.* BMIs fail,
@@ -181,6 +182,15 @@ if smoke.is_file():
 main = example_dir / "main.cpp"
 if main.is_file():
     db.append(entry(example_dir, main, MODULE_FLAGS, ["-DSDL2W_USE_MODULES=1"]))
+
+tests = tests_dir / "test_main.cpp"
+if tests.is_file():
+    db.append(entry(tests_dir, tests, MODULE_FLAGS, ["-DSDL2W_USE_MODULES=1"]))
+    db.append(entry(
+        tests_dir,
+        tests,
+        [*SYSTEM_INCLUDES, "-Wall", "-std=c++23", f"-I{classic_dir.as_posix()}"],
+    ))
 
 anims = tools_dir / "Anims.cpp"
 if anims.is_file():

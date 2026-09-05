@@ -44,5 +44,6 @@ struct SDL_Deleter {
   void operator()(TTF_Font* p) const;
   void operator()(Mix_Music* p) const;
   void operator()(SDL_Joystick* p) const;
+  void operator()(SDL_GameController* p) const;
 };
-}
+} // namespace sdl2w

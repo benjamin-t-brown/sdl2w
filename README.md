@@ -22,7 +22,7 @@ This is an opinionated C++23 library which wraps SDL2 functionality and includes
 - Event management
   - Mouse events
   - Keyboard events
-  - (coming soon) Joystick events
+  - Opt-in game-controller events and state queries
 - Logging
   - Log Levels
   - Log with filename and line number
@@ -253,6 +253,33 @@ See `src/modules/MODULES.md` and `INCLUDE.md`.
 
 The `example/` project builds this module form and the classic header form from
 the same source file.
+
+## Runtime defaults and performance controls
+
+The default setup remains small-project friendly:
+
+- `Window::init()` works without controllers and opens stereo audio. Controller
+  discovery happens only after `window.enableControllers()` (or
+  `window.getEvents().enableControllers()`), avoiding slow driver scans during
+  normal startup. Pass `1` to `Window::init(1)` for mono audio.
+- Translation files are optional. Missing files and missing entries use the
+  source text.
+- Fonts are validated at registration and additional size/outline combinations
+  open lazily. `Store::preloadFontSizes()` moves that work to a loading screen.
+- `Draw::drawText()` uses a bounded LRU texture cache (256 entries by default).
+  Use `setTextCacheLimit()` to change it. Frequently changing labels such as a
+  score can use `drawDynamicText(slot, text, params)`, which reuses one streaming
+  texture allocation per named slot.
+- `validateAssetsFromFile()` checks a unified asset manifest without loading
+  resources. `loadAssetsFromFile()` returns the same `AssetLoadResult`, including
+  line-numbered errors.
+- `Window::getDeltaTime()` returns `double` milliseconds and clamps long frame
+  gaps to 100 ms by default. Configure the clamp in `Window2Params` or with
+  `setMaxDeltaTime()`.
+
+SDL2W intentionally supports one live `Window`. Its destructor clears the
+attached `Store` before destroying the renderer, making SDL resource teardown
+deterministic. Destroy the window before calling `Window::unInit()`.
 
 If your game also uses bmin directly, use the bmin artifacts copied from the
 same SDL2W build—modules with modules, or headers with headers.

@@ -43,35 +43,33 @@ void renderSplash(sdl2w::Window& window) {
   auto [windowWidth, windowHeight] = d.getRenderSize();
   const int x = (windowWidth / 2.f);
   const int y = (windowHeight / 2.f);
-  d.setBackgroundColor({16, 30, 41});
+  d.setBackgroundColor({16, 30, 41, 255});
   for (size_t i = 0; i < lines.size(); i++) {
     d.drawText(lines[i].sliceView(),
                {
-                   .fontName =
-                       bmin::String(SPLASH_FONT_NAME.data(),
-                                    SPLASH_FONT_NAME.size()),
+                   .fontName = bmin::String(SPLASH_FONT_NAME.data(),
+                                            SPLASH_FONT_NAME.size()),
                    .fontSize = sdl2w::TextSize::TEXT_SIZE_16,
                    .x = x,
                    .y = y + static_cast<int>(i) * 20 - 100,
-                   .color = {244, 126, 27},
+                   .color = {244, 126, 27, 255},
                    .centered = true,
                });
   }
   d.drawText("Have fun!",
              {
-                 .fontName =
-                     bmin::String(SPLASH_FONT_NAME.data(),
-                                  SPLASH_FONT_NAME.size()),
+                 .fontName = bmin::String(SPLASH_FONT_NAME.data(),
+                                          SPLASH_FONT_NAME.size()),
                  .fontSize = sdl2w::TextSize::TEXT_SIZE_24,
                  .x = x,
                  .y = y + 50,
-                 .color = {255, 255, 255},
+                 .color = {255, 255, 255, 255},
                  .centered = true,
              });
 }
 
 void renderRevirtualisSplash(sdl2w::Window& window) {
-  window.getDraw().setBackgroundColor({16, 30, 41});
+  window.getDraw().setBackgroundColor({16, 30, 41, 255});
   renderSplash(window);
 }
 

@@ -150,7 +150,11 @@ test: native
 		BMIN_MODULE_CXXFLAGS="$(SDL2W_MODULE_CXXFLAGS)" \
 		BMIN_MODULE_INTERFACE_FLAGS="$(SDL2W_MODULE_INTERFACE_FLAGS)"
 	@$(MAKE) -C modules check
-	@$(MAKE) -C ../example clean all
+	@$(MAKE) -C ../example clean
+	@$(MAKE) -C ../example all
+	@$(MAKE) -C ../tests clean
+	@$(MAKE) -C ../tests all
+	@$(MAKE) -C ../tests run
 
 $(OBJ_OUTPUT_DIR) $(LIB_OUTPUT_DIR) $(TOOLS_OUTPUT_DIR):
 	@mkdir -p $@

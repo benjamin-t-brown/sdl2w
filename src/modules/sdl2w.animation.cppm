@@ -22,8 +22,8 @@ struct Animation {
   bmin::DynArray<AnimSpriteDefinition> spriteDefinitions;
   bmin::DynArray<Sprite> storedSprites;
   bmin::String name;
-  int t;
-  int totalDuration;
+  double t;
+  double totalDuration;
   int spriteIndex;
   bool loop;
   bool flipped = false;
@@ -34,15 +34,18 @@ struct Animation {
   ~Animation();
   Animation(const Animation& other);
   Animation& operator=(const Animation& other);
+  Animation(Animation&& other) noexcept = default;
+  Animation& operator=(Animation&& other) noexcept = default;
 
   bool isInitialized() const;
+  bool isFinished() const;
   const Sprite& getCurrentSprite() const;
   bmin::String toString() const;
   void addSprite(const AnimSpriteDefinition& def, const Sprite& sprite);
   int getAnimIndex() const;
 
   void start();
-  void update(int dt);
+  void update(double dt);
 };
 
 struct AnimationDefinition {
@@ -54,4 +57,4 @@ struct AnimationDefinition {
   void addSprite(std::string_view spriteName, int ms);
 };
 
-}
+} // namespace sdl2w
