@@ -34,8 +34,7 @@ Events::Events() {
 Events::~Events() {}
 
 bool Events::isKeyPressed(std::string_view name) const {
-  const bmin::String nameStr(name.data(), name.size());
-  auto it = const_cast<bmin::Map<bmin::String, bool>&>(keys).find(nameStr);
+  auto it = keys.find(name);
   if (it == keys.end()) {
     return false;
   }

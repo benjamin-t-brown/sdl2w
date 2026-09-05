@@ -194,21 +194,21 @@ void Store::storeMusic(std::string_view name, std::string_view path) {
 }
 
 SDL_Texture* Store::getTexture(std::string_view name) {
-  const bmin::String nameStr = toKey(name);
-  auto it = textures.find(nameStr);
+  auto it = textures.find(name);
   if (it != textures.end()) {
     return (*it).value.get();
   }
+  const bmin::String nameStr = toKey(name);
   THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Cannot get Texture '") +
                       nameStr + "' because it has not been loaded.");
 }
 
 SDL_Texture* Store::getDynamicTexture(std::string_view name) {
-  const bmin::String nameStr = toKey(name);
-  auto it = dynamicTextures.find(nameStr);
+  auto it = dynamicTextures.find(name);
   if (it != dynamicTextures.end()) {
     return (*it).value.get();
   }
+  const bmin::String nameStr = toKey(name);
   THROW_RUNTIME_ERROR(
       bmin::String("[sdl2w] ERROR Cannot get DynamicTexture '") + nameStr +
       "' because it has not been loaded.");
@@ -219,21 +219,21 @@ SDL_Texture* Store::getTextTexture(std::string_view name) {
 }
 
 Sprite& Store::getSprite(std::string_view name) {
-  const bmin::String nameStr = toKey(name);
-  auto it = sprites.find(nameStr);
+  auto it = sprites.find(name);
   if (it != sprites.end()) {
     return *(*it).value.get();
   }
+  const bmin::String nameStr = toKey(name);
   THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Cannot get Sprite '") +
                       nameStr + "' because it has not been loaded.");
 }
 
 AnimationDefinition& Store::getAnimationDefinition(std::string_view name) {
-  const bmin::String nameStr = toKey(name);
-  auto it = anims.find(nameStr);
+  auto it = anims.find(name);
   if (it != anims.end()) {
     return *(*it).value;
   }
+  const bmin::String nameStr = toKey(name);
   THROW_RUNTIME_ERROR(
       bmin::String("[sdl2w] ERROR Cannot get AnimationDefinition '") +
       nameStr + "' because it has not been loaded.");
@@ -257,31 +257,31 @@ Store::getFont(std::string_view name, const int sz, const bool isOutline) {
 }
 
 Mix_Chunk* Store::getSound(std::string_view name) {
-  const bmin::String nameStr = toKey(name);
-  auto it = sounds.find(nameStr);
+  auto it = sounds.find(name);
   if (it != sounds.end()) {
     return (*it).value.chunk.get();
   }
+  const bmin::String nameStr = toKey(name);
   THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Cannot get Sound '") +
                       nameStr + "' because it has not been loaded.");
 }
 
 float Store::getSoundVolume(std::string_view name) {
-  const bmin::String nameStr = toKey(name);
-  auto it = sounds.find(nameStr);
+  auto it = sounds.find(name);
   if (it != sounds.end()) {
     return (*it).value.volume;
   }
+  const bmin::String nameStr = toKey(name);
   THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Cannot get Sound '") +
                       nameStr + "' because it has not been loaded.");
 }
 
 Mix_Music* Store::getMusic(std::string_view name) {
-  const bmin::String nameStr = toKey(name);
-  auto it = musics.find(nameStr);
+  auto it = musics.find(name);
   if (it != musics.end()) {
     return (*it).value.get();
   }
+  const bmin::String nameStr = toKey(name);
   THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Cannot get Music '") +
                       nameStr + "' because it has not been loaded.");
 }
@@ -298,7 +298,7 @@ Animation Store::createAnimation(std::string_view name, bool flipped) {
 }
 
 bool Store::hasDynamicTexture(std::string_view name) {
-  return dynamicTextures.contains(toKey(name));
+  return dynamicTextures.contains(name);
 }
 
 void Store::logAllSprites() {
@@ -330,13 +330,12 @@ void Store::logAllAnimationDefinitions() {
 }
 
 void Store::clear() {
-  textures = bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>>();
-  dynamicTextures =
-      bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>>();
-  sprites = bmin::Map<bmin::String, bmin::UniquePtr<Sprite>>();
-  anims = bmin::Map<bmin::String, bmin::UniquePtr<AnimationDefinition>>();
-  sounds = bmin::Map<bmin::String, StoredSound>();
-  musics = bmin::Map<bmin::String, bmin::UniquePtr<Mix_Music, SDL_Deleter>>();
-  fonts = bmin::Map<bmin::String, bmin::UniquePtr<TTF_Font, SDL_Deleter>>();
+  textures.clear();
+  dynamicTextures.clear();
+  sprites.clear();
+  anims.clear();
+  sounds.clear();
+  musics.clear();
+  fonts.clear();
 }
 } // namespace sdl2w

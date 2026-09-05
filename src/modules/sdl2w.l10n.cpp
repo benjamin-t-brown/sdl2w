@@ -137,7 +137,7 @@ const bmin::Map<size_t, bmin::String>& L10n::getStrings() {
 
 const bmin::String& L10n::transRef(size_t id) {
   const bmin::Map<size_t, bmin::String>& strings = getStrings();
-  auto it = const_cast<bmin::Map<size_t, bmin::String>&>(strings).find(id);
+  auto it = strings.find(id);
   if (it != strings.end()) {
     return (*it).value;
   }
