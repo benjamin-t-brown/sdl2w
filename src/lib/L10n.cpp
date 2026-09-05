@@ -2,6 +2,7 @@
 #include "AssetLoader.h"
 #include "Defines.h"
 #include "Logger.h"
+#include <fstream>
 #include <string_view>
 
 namespace sdl2w {
@@ -12,10 +13,8 @@ bmin::DynArray<bmin::String> L10n::supportedLanguages;
 bool L10n::enabledFlag = false;
 
 void L10n::init(std::initializer_list<std::string_view> langs) {
-  if (!isEnabled()) {
-    return;
-  }
-
+  enabledFlag = true;
+  locStrings.clear();
   locStrings[bmin::String(DISABLE_TRANSLATIONS)] =
       bmin::Map<size_t, bmin::String>();
 
@@ -23,22 +22,34 @@ void L10n::init(std::initializer_list<std::string_view> langs) {
   for (std::string_view lang : langs) {
     supportedLanguages.pushBack(bmin::String(lang.data(), lang.size()));
   }
+  if (!supportedLanguages.empty()) {
+    language = supportedLanguages[0];
+  } else {
+    language = DISABLE_TRANSLATIONS;
+  }
 
   for (size_t i = 0; i < supportedLanguages.size(); ++i) {
     const bmin::String& lang = supportedLanguages[i];
     const bmin::String path =
         bmin::String("assets/translation.") + lang + ".txt";
-    try {
-      LOG(DEBUG) << "[sdl2w] Loading translation file "
-                 << (bmin::String(ASSETS_PREFIX.data(), ASSETS_PREFIX.size()) +
-                     path)
-                 << Logger::endl;
-      const bmin::String content = loadFileAsString(path.sliceView());
-      loadLanguage(lang.sliceView(), content.sliceView());
-    } catch (std::exception& e) {
-      LOG_LINE(ERROR) << "Failed to load language file '" << path
-                      << "': " << e.what() << Logger::endl;
+    locStrings[lang] = bmin::Map<size_t, bmin::String>();
+    const bmin::String fullPath =
+        bmin::String(ASSETS_PREFIX.data(), ASSETS_PREFIX.size()) + path;
+    LOG(DEBUG) << "[sdl2w] Loading translation file " << fullPath
+               << Logger::endl;
+    std::ifstream file(fullPath.cStr(), std::ios::binary);
+    if (!file) {
+      LOG(WARN) << "[sdl2w] Translation file '" << fullPath
+                << "' was not found; using source text for '" << lang << "'."
+                << Logger::endl;
+      continue;
     }
+    bmin::String content;
+    char buffer[4096];
+    while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
+      content.append(buffer, static_cast<size_t>(file.gcount()));
+    }
+    loadLanguage(lang.sliceView(), content.sliceView());
   }
 }
 
@@ -110,32 +121,63 @@ void L10n::loadLanguage(std::string_view lang, std::string_view langText) {
 void L10n::setEnabled(bool enabled) { enabledFlag = enabled; }
 bool L10n::isEnabled() { return enabledFlag; }
 
-void L10n::setLanguage(std::string_view lang) {
+bool L10n::setLanguage(std::string_view lang) {
   if (!isEnabled()) {
-    return;
+    return false;
   }
 
   const bmin::String langStr(lang.data(), lang.size());
   if (locStrings.contains(langStr)) {
     language = langStr;
     LOG(DEBUG) << "[sdl2w] Language set to '" << langStr << "'" << Logger::endl;
+    return true;
   } else {
     LOG_LINE(ERROR) << "Language '" << langStr << "' not supported."
                     << Logger::endl;
+    return false;
   }
 }
 
 const bmin::Map<size_t, bmin::String>& L10n::getStrings() {
-  return locStrings[language];
+  auto it = locStrings.find(language);
+  if (it != locStrings.end()) {
+    return (*it).value;
+  }
+  auto defaults = locStrings.find(std::string_view(DISABLE_TRANSLATIONS));
+  if (defaults != locStrings.end()) {
+    return (*defaults).value;
+  }
+  static const bmin::Map<size_t, bmin::String> empty;
+  return empty;
 }
 
-bmin::String L10n::trans(size_t id) {
+const bmin::String& L10n::transRef(size_t id) {
   const bmin::Map<size_t, bmin::String>& strings = getStrings();
   auto it = strings.find(id);
   if (it != strings.end()) {
     return (*it).value;
   }
-  return "?MISSING?";
+  auto defaultsIt = locStrings.find(std::string_view(DISABLE_TRANSLATIONS));
+  if (defaultsIt != locStrings.end()) {
+    auto sourceIt = (*defaultsIt).value.find(id);
+    if (sourceIt != (*defaultsIt).value.end()) {
+      return (*sourceIt).value;
+    }
+  }
+  static const bmin::String missing("?MISSING?");
+  return missing;
+}
+
+bmin::String L10n::trans(size_t id) { return transRef(id); }
+
+const char* L10n::translate(const char* text) {
+  if (text == nullptr) {
+    return "";
+  }
+  if (!isEnabled()) {
+    return text;
+  }
+  return transRef(hash(text)).cStr();
 }
 
 size_t L10n::hash(std::string_view str) {

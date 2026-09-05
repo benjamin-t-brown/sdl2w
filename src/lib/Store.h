@@ -8,6 +8,7 @@
 #include "bmin/Map.h"
 #include "bmin/String.h"
 #include "bmin/UniquePtr.h"
+#include <initializer_list>
 #include <string_view>
 
 namespace sdl2w {
@@ -19,7 +20,7 @@ struct StoredSound {
 };
 
 class Store {
-public:
+  bmin::Map<bmin::String, bmin::String> fontPaths;
   bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>> textures;
   bmin::Map<bmin::String, bmin::UniquePtr<SDL_Texture, SDL_Deleter>>
       dynamicTextures;
@@ -28,23 +29,33 @@ public:
   bmin::Map<bmin::String, bmin::UniquePtr<TTF_Font, SDL_Deleter>> fonts;
   bmin::Map<bmin::String, StoredSound> sounds;
   bmin::Map<bmin::String, bmin::UniquePtr<Mix_Music, SDL_Deleter>> musics;
-
   bmin::Map<bmin::String, bmin::String> fontAliases;
-  AnimationDefinition defaultAnimDef = AnimationDefinition("default", false);
 
-  Store() {}
+public:
+  using TexturePtr = bmin::UniquePtr<SDL_Texture, SDL_Deleter>;
 
+  Store() = default;
+  Store(const Store&) = delete;
+  Store& operator=(const Store&) = delete;
+  Store(Store&&) = delete;
+  Store& operator=(Store&&) = delete;
+
+  void storeTexture(std::string_view name, TexturePtr tex);
   void storeTexture(std::string_view name, SDL_Texture* tex);
+  void storeDynamicTexture(std::string_view name, TexturePtr tex);
   void storeDynamicTexture(std::string_view name, SDL_Texture* tex);
+  void storeSprite(std::string_view name, Sprite sprite);
   void storeSprite(std::string_view name, Sprite* sprite);
   AnimationDefinition& storeAnimationDefinition(std::string_view name,
                                                 const bool loop);
   void loadAndStoreFont(std::string_view name, std::string_view path);
+  void preloadFontSizes(std::string_view name,
+                        std::initializer_list<TextSize> sizes,
+                        bool includeOutlines = false);
   void createFontAlias(std::string_view aliasName,
                        std::string_view loadedFontName);
-  void storeSound(std::string_view name,
-                  std::string_view path,
-                  float volume = 1.0f);
+  void
+  storeSound(std::string_view name, std::string_view path, float volume = 1.0f);
   void storeMusic(std::string_view name, std::string_view path);
 
   SDL_Texture* getTexture(std::string_view name);
@@ -59,7 +70,14 @@ public:
   Mix_Music* getMusic(std::string_view name);
   Animation createAnimation(std::string_view name, bool flipped = false);
 
-  bool hasDynamicTexture(std::string_view name);
+  bool hasTexture(std::string_view name) const;
+  bool hasDynamicTexture(std::string_view name) const;
+  bool hasSprite(std::string_view name) const;
+  bool hasAnimationDefinition(std::string_view name) const;
+  bool hasFont(std::string_view name) const;
+  bool hasFont(std::string_view name, int size, bool isOutline = false) const;
+  bool hasSound(std::string_view name) const;
+  bool hasMusic(std::string_view name) const;
 
   void logAllSprites();
   void logAllAnimationDefinitions();

@@ -17,17 +17,25 @@ namespace emshelpers {
 
 sdl2w::Window* emscriptenWindow = nullptr;
 
-void setEmscriptenWindow(sdl2w::Window* window) {
-  emscriptenWindow = window;
+void setEmscriptenWindow(void* window) {
+  emscriptenWindow = static_cast<sdl2w::Window*>(window);
   sdl2w::Logger().get(sdl2w::DEBUG)
       << "[sdl2w] Set Emscripten window: " << emscriptenWindow
       << sdl2w::Logger::endl;
+}
 
+void notifyTargetWindowSize(int width, int height) {
 #ifdef __EMSCRIPTEN__
-  bmin::StringStream ss;
-  auto [width, height] = window->getDraw().getRenderSize();
-  ss << "window.Lib.notifyTargetWindowSize(" << width << ", " << height << ")";
-  emscripten_run_script(ss.str().cStr());
+  EM_ASM(
+      {
+        if (window.Lib && window.Lib.notifyTargetWindowSize)
+          window.Lib.notifyTargetWindowSize($0, $1);
+      },
+      width,
+      height);
+#else
+  (void)width;
+  (void)height;
 #endif
 }
 bool isEmscriptenEnv() {
@@ -40,26 +48,44 @@ bool isEmscriptenEnv() {
 
 void notifyGameStarted() {
 #ifdef __EMSCRIPTEN__
-  emscripten_run_script("window.Lib.notifyGameStarted()");
+  EM_ASM({
+    if (window.Lib && window.Lib.notifyGameStarted)
+      window.Lib.notifyGameStarted();
+  });
 #endif
 }
 void notifyGameReady() {
 #ifdef __EMSCRIPTEN__
-  emscripten_run_script("window.Lib.notifyGameReady()");
+  EM_ASM({
+    if (window.Lib && window.Lib.notifyGameReady)
+      window.Lib.notifyGameReady();
+  });
 #endif
 }
 void notifyGameCompleted(std::string_view result) {
 #ifdef __EMSCRIPTEN__
-  bmin::String script = bmin::String("window.Lib.notifyGameCompleted('") +
-                         bmin::String(result.data(), result.size()) + "')";
-  emscripten_run_script(script.cStr());
+  const bmin::String value(result.data(), result.size());
+  EM_ASM(
+      {
+        if (window.Lib && window.Lib.notifyGameCompleted)
+          window.Lib.notifyGameCompleted(UTF8ToString($0));
+      },
+      value.cStr());
+#else
+  (void)result;
 #endif
 }
 void notifyGameGeneric(std::string_view payload) {
 #ifdef __EMSCRIPTEN__
-  bmin::String script = bmin::String("window.Lib.notifyGameGeneric('") +
-                         bmin::String(payload.data(), payload.size()) + "')";
-  emscripten_run_script(script.cStr());
+  const bmin::String value(payload.data(), payload.size());
+  EM_ASM(
+      {
+        if (window.Lib && window.Lib.notifyGameGeneric)
+          window.Lib.notifyGameGeneric(UTF8ToString($0));
+      },
+      value.cStr());
+#else
+  (void)payload;
 #endif
 }
 } // namespace emshelpers
@@ -69,6 +95,8 @@ extern "C" {
 
 EMSCRIPTEN_KEEPALIVE
 void setVolume(int volumePct) {
+  if (emshelpers::emscriptenWindow == nullptr)
+    return;
   emshelpers::emscriptenWindow->setSoundPct(double(volumePct));
   emshelpers::emscriptenWindow->setMusicPct(double(volumePct));
   sdl2w::Logger().get(sdl2w::DEBUG)
@@ -76,6 +104,8 @@ void setVolume(int volumePct) {
 }
 EMSCRIPTEN_KEEPALIVE
 void enableSound() {
+  if (emshelpers::emscriptenWindow == nullptr)
+    return;
   sdl2w::Window::_soundEnabled = true;
   int volumePct = emshelpers::emscriptenWindow->getSoundPct();
   int musicPct = emshelpers::emscriptenWindow->getMusicPct();
@@ -93,12 +123,16 @@ void disableSound() {
 }
 EMSCRIPTEN_KEEPALIVE
 void setKeyDown(int key) {
+  if (emshelpers::emscriptenWindow == nullptr)
+    return;
   emshelpers::emscriptenWindow->getEvents().keydown(key);
   sdl2w::Logger().get(sdl2w::DEBUG)
       << "External set key down: " << key << sdl2w::Logger::endl;
 }
 EMSCRIPTEN_KEEPALIVE
 void setKeyUp(int key) {
+  if (emshelpers::emscriptenWindow == nullptr)
+    return;
   emshelpers::emscriptenWindow->getEvents().keyup(key);
   sdl2w::Logger().get(sdl2w::DEBUG)
       << "External set key up: " << key << sdl2w::Logger::endl;
@@ -112,6 +146,8 @@ void setKeyStatus(int status) {
 }
 EMSCRIPTEN_KEEPALIVE
 void sendEvent(int event, int payload) {
+  if (emshelpers::emscriptenWindow == nullptr)
+    return;
   emshelpers::emscriptenWindow->pushExternalEvent(
       event, bmin::toString(payload).sliceView());
   sdl2w::Logger().get(sdl2w::DEBUG) << "External event received: " << event

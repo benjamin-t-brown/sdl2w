@@ -22,7 +22,6 @@ module;
 #include <SDL2/SDL_ttf.h>
 #endif
 
-
 module sdl2w.assets;
 import sdl2w.draw;
 import sdl2w.store;
@@ -74,15 +73,54 @@ bmin::String readStreamAsString(std::istream& in) {
   return result;
 }
 
+void addIssue(AssetLoadResult& result,
+              AssetIssueSeverity severity,
+              size_t line,
+              const bmin::String& message) {
+  result.issues.pushBack(AssetIssue{severity, line, message});
+  if (severity == ASSET_ERROR) {
+    result.success = false;
+  }
+}
+
+bool parsePositiveInt(const bmin::String& value, int& out) {
+  if (!bmin::isInt(value)) {
+    return false;
+  }
+  out = bmin::parseInt(value);
+  return out > 0;
+}
+
 } // namespace
 
 bool AssetLoader::fsReady = false;
 
+bmin::String AssetLoadResult::toString() const {
+  bmin::StringStream out;
+  out << (success ? "asset validation succeeded" : "asset validation failed");
+  if (assetCount > 0) {
+    out << " (" << assetCount << " assets)";
+  }
+  for (size_t i = 0; i < issues.size(); ++i) {
+    out << "\n" << (issues[i].severity == ASSET_ERROR ? "error" : "warning");
+    if (issues[i].line > 0) {
+      out << " at line " << issues[i].line;
+    }
+    out << ": " << issues[i].message;
+  }
+  return out.str();
+}
+
+bmin::StringStream& operator<<(bmin::StringStream& out,
+                               const AssetLoadResult& result) {
+  out << result.toString();
+  return out;
+}
+
 bmin::String AssetLoader::resolveSoundPath(std::string_view path) const {
   const char* ext = (soundFileMode == SOUND_FILE_OGG) ? ".ogg" : ".wav";
   const size_t slash = path.find_last_of("/\\");
-  const size_t baseStart =
-      (slash == std::string_view::npos) ? 0 : slash + 1;
+  const size_t baseStart = (slash == std::string_view::npos) ? 0 : slash + 1;
   const size_t dot = path.find_last_of('.');
 
   if (dot != std::string_view::npos && dot > baseStart) {
@@ -261,9 +299,14 @@ void AssetLoader::loadPicture(std::string_view name, std::string_view path) {
   }
   picturePathToAlias[pathStr] = toKey(name);
 
-  SDL_Texture* tex = draw.createTexture(loadedImage);
-  store.storeTexture(name, tex);
+  Store::TexturePtr texture(draw.createTexture(loadedImage));
   SDL_FreeSurface(loadedImage);
+  if (!texture) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Failed to create texture for '") +
+                        toKey(path) + "': " + SDL_GetError());
+  }
+  SDL_Texture* tex = texture.get();
+  store.storeTexture(name, std::move(texture));
   loadSprite(name, tex, false);
 }
 
@@ -274,16 +317,15 @@ void AssetLoader::loadSprite(std::string_view name,
   int height;
   SDL_QueryTexture(tex, nullptr, nullptr, &width, &height);
   const bmin::String nameStr = toKey(name);
-  store.storeSprite(
-      name,
-      new Sprite{nameStr,
-                 Renderable{tex, nullptr},
-                 0,
-                 0,
-                 width,
-                 height,
-                 width,
-                 flipped});
+  store.storeSprite(name,
+                    Sprite{nameStr,
+                           Renderable{tex, nullptr},
+                           0,
+                           0,
+                           width,
+                           height,
+                           width,
+                           flipped});
 }
 
 void AssetLoader::loadSprite(std::string_view name,
@@ -295,16 +337,15 @@ void AssetLoader::loadSprite(std::string_view name,
                              int h,
                              bool flipped) {
   const bmin::String nameStr = toKey(name);
-  store.storeSprite(
-      name,
-      new Sprite{nameStr,
-                 Renderable{tex, nullptr},
-                 x,
-                 y,
-                 w,
-                 h,
-                 spritesheetWidth,
-                 flipped});
+  store.storeSprite(name,
+                    Sprite{nameStr,
+                           Renderable{tex, nullptr},
+                           x,
+                           y,
+                           w,
+                           h,
+                           spritesheetWidth,
+                           flipped});
 }
 
 void AssetLoader::loadSpriteSheet(std::string_view pictureName,
@@ -316,12 +357,24 @@ void AssetLoader::loadSpriteSheet(std::string_view pictureName,
   const bmin::String pictureStr = toKey(pictureName);
   Sprite& sprite = store.getSprite(pictureStr.sliceView());
 
-  int num_x = sprite.w / w;
-  int ctr = 0;
+  if (w <= 0 || h <= 0 || n < lastSpriteInd) {
+    THROW_RUNTIME_ERROR("[sdl2w] Invalid sprite-sheet dimensions or range.");
+  }
+  if (w > sprite.w || h > sprite.h) {
+    THROW_RUNTIME_ERROR(
+        bmin::String("[sdl2w] Sprite dimensions exceed picture '") +
+        pictureStr + "'.");
+  }
 
+  int num_x = sprite.w / w;
+  const int numY = sprite.h / h;
+  const int availableSprites = num_x * numY;
+  if (num_x <= 0 || numY <= 0 || n > availableSprites) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Sprite range exceeds picture '") +
+                        pictureStr + "'.");
+  }
   for (int i = lastSpriteInd; i < n; i++) {
-    const bmin::String sprName =
-        toKey(spriteName) + "_" + bmin::toString(ctr);
+    const bmin::String sprName = toKey(spriteName) + "_" + bmin::toString(i);
 
     spriteNameToPictureAlias[sprName] = pictureStr;
     loadSprite(sprName.cStr(),
@@ -332,7 +385,6 @@ void AssetLoader::loadSpriteSheet(std::string_view pictureName,
                w,
                h,
                false);
-    ctr++;
   }
 }
 
@@ -382,8 +434,8 @@ void AssetLoader::loadSpriteAssetsFromFile(std::string_view path) {
         const int wVal = bmin::parseInt(arr[3]);
         const int hVal = bmin::parseInt(arr[4]);
         const int n = nVal + lastSpriteInd;
-        loadSpriteSheet(lastPicture.cStr(), name.cStr(), lastSpriteInd, n,
-                        wVal, hVal);
+        loadSpriteSheet(
+            lastPicture.cStr(), name.cStr(), lastSpriteInd, n, wVal, hVal);
         lastSpriteInd = n;
       } else if (arr[0] == "Sprite") {
         // NOTE: Deprecated single sprites do not support flipping
@@ -427,6 +479,9 @@ void AssetLoader::loadAnimationAssetsFromFile(std::string_view path) {
     int lineOffset = 0;
 
     while (readLine(file, line)) {
+      if (line.empty()) {
+        continue;
+      }
       if (line[0] == '#') {
         lineOffset = 1;
       } else if (line.size() > 1) {
@@ -461,6 +516,7 @@ void AssetLoader::loadAnimationAssetsFromFile(std::string_view path) {
                 << "[sdl2w] Failed to load anim sprite for: " << animName
                 << Logger::endl;
             LOG_LINE(ERROR) << " FROM: '" << line << "'" << Logger::endl;
+            continue;
           }
 
           anim.addSprite(strName.cStr(), frames);
@@ -536,7 +592,8 @@ void AssetLoader::loadAssetFile(std::string_view path) {
   try {
     while (readLine(file, line)) {
       const bmin::String trimmed = trim(line.sliceView());
-      if (trimmed.empty() || trimmed[0] == '#') { // Skip comments and empty lines
+      if (trimmed.empty() ||
+          trimmed[0] == '#') { // Skip comments and empty lines
         continue;
       }
 
@@ -567,8 +624,8 @@ void AssetLoader::loadAssetFile(std::string_view path) {
             animDef.addSprite(spriteNameStr.cStr(), frames);
           } catch (const std::exception& e) {
             LOG_LINE(ERROR) << "[sdl2w] Failed to parse animation frame for "
-                            << currentAnimationName << ": '" << trimmed << "' - "
-                            << e.what() << Logger::endl;
+                            << currentAnimationName << ": '" << trimmed
+                            << "' - " << e.what() << Logger::endl;
           }
         } else {
           LOG(WARN) << "[sdl2w] Malformed or incomplete animation frame line: '"
@@ -585,17 +642,18 @@ void AssetLoader::loadAssetFile(std::string_view path) {
         continue;
       }
 
-      const bmin::String command = trim(
-          std::string_view(tokens[0].cStr(), tokens[0].size())); // Trim the command itself
+      const bmin::String command = trim(std::string_view(
+          tokens[0].cStr(), tokens[0].size())); // Trim the command itself
 
       if (command == "Pic") {
         if (tokens.size() >= 3) {
-          const bmin::String alias = trim(
-              std::string_view(tokens[1].cStr(), tokens[1].size()));
-          const bmin::String picPath = trim(
-              std::string_view(tokens[2].cStr(), tokens[2].size()));
+          const bmin::String alias =
+              trim(std::string_view(tokens[1].cStr(), tokens[1].size()));
+          const bmin::String picPath =
+              trim(std::string_view(tokens[2].cStr(), tokens[2].size()));
           loadPicture(
-              alias.cStr(), picPath.cStr()); // Path is from executable as per assets.txt spec
+              alias.cStr(),
+              picPath.cStr()); // Path is from executable as per assets.txt spec
           nextSpriteIndexForPicture[alias] =
               0; // Initialize sprite counter for this picture
         } else {
@@ -604,16 +662,17 @@ void AssetLoader::loadAssetFile(std::string_view path) {
         }
       } else if (command == "Sprites") {
         if (tokens.size() >= 5) {
-          const bmin::String picName = trim(
-              std::string_view(tokens[1].cStr(), tokens[1].size()));
-          const bmin::String numStr = trim(
-              std::string_view(tokens[2].cStr(), tokens[2].size()));
-          const bmin::String widthStr = trim(
-              std::string_view(tokens[3].cStr(), tokens[3].size()));
-          const bmin::String heightStr = trim(
-              std::string_view(tokens[4].cStr(), tokens[4].size()));
+          const bmin::String picName =
+              trim(std::string_view(tokens[1].cStr(), tokens[1].size()));
+          const bmin::String numStr =
+              trim(std::string_view(tokens[2].cStr(), tokens[2].size()));
+          const bmin::String widthStr =
+              trim(std::string_view(tokens[3].cStr(), tokens[3].size()));
+          const bmin::String heightStr =
+              trim(std::string_view(tokens[4].cStr(), tokens[4].size()));
           try {
-            if (!bmin::isInt(numStr) || !bmin::isInt(widthStr) || !bmin::isInt(heightStr)) {
+            if (!bmin::isInt(numStr) || !bmin::isInt(widthStr) ||
+                !bmin::isInt(heightStr)) {
               throw std::invalid_argument("invalid number in Sprites line");
             }
             const int numSprites = bmin::parseInt(numStr);
@@ -654,10 +713,10 @@ void AssetLoader::loadAssetFile(std::string_view path) {
         }
       } else if (command == "Anim") {
         if (tokens.size() >= 3) {
-          currentAnimationName = trim(
-              std::string_view(tokens[1].cStr(), tokens[1].size()));
-          const bmin::String loopStr = trim(
-              std::string_view(tokens[2].cStr(), tokens[2].size()));
+          currentAnimationName =
+              trim(std::string_view(tokens[1].cStr(), tokens[1].size()));
+          const bmin::String loopStr =
+              trim(std::string_view(tokens[2].cStr(), tokens[2].size()));
           const bool loop = (loopStr == "loop");
           store.storeAnimationDefinition(currentAnimationName.cStr(), loop);
           parsingAnimationFrames = true;
@@ -668,16 +727,16 @@ void AssetLoader::loadAssetFile(std::string_view path) {
       } else if (command == "Sound") {
         // Sound,<alias>,<path>[,<volume 0-1>][,attribution...]
         if (tokens.size() >= 3) {
-          const bmin::String alias = trim(
-              std::string_view(tokens[1].cStr(), tokens[1].size()));
-          const bmin::String trimmedPath = trim(
-              std::string_view(tokens[2].cStr(), tokens[2].size()));
+          const bmin::String alias =
+              trim(std::string_view(tokens[1].cStr(), tokens[1].size()));
+          const bmin::String trimmedPath =
+              trim(std::string_view(tokens[2].cStr(), tokens[2].size()));
           const bmin::String soundPath = resolveSoundPath(
               std::string_view(trimmedPath.cStr(), trimmedPath.size()));
           float volume = 1.0f;
           if (tokens.size() >= 4) {
-            const bmin::String volumeToken = trim(
-                std::string_view(tokens[3].cStr(), tokens[3].size()));
+            const bmin::String volumeToken =
+                trim(std::string_view(tokens[3].cStr(), tokens[3].size()));
             tryParseSoundVolume(volumeToken, volume);
           }
           store.storeSound(alias.cStr(), soundPath.cStr(), volume);
@@ -687,10 +746,10 @@ void AssetLoader::loadAssetFile(std::string_view path) {
         }
       } else if (command == "Music") {
         if (tokens.size() >= 3) {
-          const bmin::String alias = trim(
-              std::string_view(tokens[1].cStr(), tokens[1].size()));
-          const bmin::String trimmedPath = trim(
-              std::string_view(tokens[2].cStr(), tokens[2].size()));
+          const bmin::String alias =
+              trim(std::string_view(tokens[1].cStr(), tokens[1].size()));
+          const bmin::String trimmedPath =
+              trim(std::string_view(tokens[2].cStr(), tokens[2].size()));
           const bmin::String musicPath = resolveSoundPath(
               std::string_view(trimmedPath.cStr(), trimmedPath.size()));
           store.storeMusic(alias.cStr(), musicPath.cStr());
@@ -710,25 +769,267 @@ void AssetLoader::loadAssetFile(std::string_view path) {
     if (file.is_open()) {
       file.close();
     }
+    throw;
   }
 }
 
-void AssetLoader::loadAssetsFromFile(AssetFileType type,
-                                     std::string_view path) {
-  switch (type) {
-  case DEPRECATED_ASSET_TYPE_SPRITE:
-    loadSpriteAssetsFromFile(path);
-    break;
-  case DEPRECATED_ASSET_TYPE_ANIMATION:
-    loadAnimationAssetsFromFile(path);
-    break;
-  case DEPRECATED_ASSET_TYPE_SOUND:
-    loadSoundAssetsFromFile(path);
-    break;
-  case ASSET_FILE:
-    loadAssetFile(path);
-    break;
+AssetLoadResult
+AssetLoader::validateAssetsFromFile(AssetFileType type,
+                                    std::string_view path) const {
+  AssetLoadResult result;
+  if (type != ASSET_FILE) {
+    addIssue(result,
+             ASSET_WARNING,
+             0,
+             "legacy asset formats are loaded without full prevalidation");
+    return result;
   }
+
+  const bmin::String fullPath = assetsPath(path);
+  std::ifstream file(fullPath.cStr());
+  if (!file.is_open()) {
+    addIssue(result,
+             ASSET_ERROR,
+             0,
+             bmin::String("cannot open asset file '") + fullPath + "'");
+    return result;
+  }
+
+  bmin::Map<bmin::String, bool> pictures;
+  bmin::Map<bmin::String, bool> sprites;
+  bmin::Map<bmin::String, bool> animations;
+  bmin::Map<bmin::String, bool> soundsSeen;
+  bmin::Map<bmin::String, bool> musicSeen;
+  bmin::Map<bmin::String, int> nextSpriteIndex;
+  bool inAnimation = false;
+  bmin::String animationName;
+  bmin::String line;
+  size_t lineNumber = 0;
+
+  while (readLine(file, line)) {
+    ++lineNumber;
+    const bmin::String trimmed = trim(line.sliceView());
+    if (trimmed.empty() || trimmed[0] == '#') {
+      continue;
+    }
+
+    if (inAnimation) {
+      if (trimmed == "EndAnim") {
+        inAnimation = false;
+        animationName.clear();
+        continue;
+      }
+      const std::string_view frameLine(trimmed.cStr(), trimmed.size());
+      const size_t separator = frameLine.find_first_of(" \t");
+      if (separator == std::string_view::npos) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 "animation frame must contain a sprite name and duration");
+        continue;
+      }
+      const bmin::String spriteName = trim(frameLine.substr(0, separator));
+      const bmin::String durationText = trim(frameLine.substr(separator + 1));
+      int duration = 0;
+      if (spriteName.empty() || !parsePositiveInt(durationText, duration)) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 "animation frame duration must be a positive integer");
+        continue;
+      }
+      if (!sprites.contains(spriteName) &&
+          !store.hasSprite(spriteName.sliceView())) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 bmin::String("animation references unknown sprite '") +
+                     spriteName + "'");
+      }
+      ++result.assetCount;
+      continue;
+    }
+
+    bmin::DynArray<bmin::String> tokens;
+    split(trimmed.sliceView(), ",", tokens);
+    for (size_t i = 0; i < tokens.size(); ++i) {
+      tokens[i] = trim(tokens[i].sliceView());
+    }
+    const bmin::String& command = tokens[0];
+
+    if (command == "Pic") {
+      if (tokens.size() < 3 || tokens[1].empty() || tokens[2].empty()) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 "Pic requires a non-empty alias and path");
+        continue;
+      }
+      const bmin::String& alias = tokens[1];
+      if (pictures.contains(alias) || sprites.contains(alias) ||
+          store.hasTexture(alias.sliceView()) ||
+          store.hasSprite(alias.sliceView())) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 bmin::String("duplicate picture or sprite '") + alias + "'");
+        continue;
+      }
+      pictures[alias] = true;
+      sprites[alias] = true;
+      nextSpriteIndex[alias] = 0;
+      result.assetCount += 2;
+    } else if (command == "Sprites") {
+      if (tokens.size() < 5) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 "Sprites requires picture, count, width, and height");
+        continue;
+      }
+      const bmin::String& picture = tokens[1];
+      int count = 0;
+      int width = 0;
+      int height = 0;
+      if ((!pictures.contains(picture) &&
+           !store.hasTexture(picture.sliceView())) ||
+          !parsePositiveInt(tokens[2], count) ||
+          !parsePositiveInt(tokens[3], width) ||
+          !parsePositiveInt(tokens[4], height)) {
+        addIssue(
+            result,
+            ASSET_ERROR,
+            lineNumber,
+            "Sprites requires a known picture and positive numeric values");
+        continue;
+      }
+      int start = 0;
+      auto next = nextSpriteIndex.find(picture);
+      if (next != nextSpriteIndex.end()) {
+        start = (*next).value;
+      }
+      for (int i = 0; i < count; ++i) {
+        const bmin::String generated =
+            picture + "_" + bmin::toString(start + i);
+        if (sprites.contains(generated) ||
+            store.hasSprite(generated.sliceView())) {
+          addIssue(result,
+                   ASSET_ERROR,
+                   lineNumber,
+                   bmin::String("duplicate generated sprite '") + generated +
+                       "'");
+        }
+        sprites[generated] = true;
+      }
+      nextSpriteIndex[picture] = start + count;
+      result.assetCount += static_cast<size_t>(count);
+    } else if (command == "Anim") {
+      if (tokens.size() < 3 || tokens[1].empty() ||
+          (tokens[2] != "loop" && tokens[2] != "once" &&
+           tokens[2] != "noloop")) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 "Anim requires a name and 'loop', 'once', or 'noloop'");
+        continue;
+      }
+      animationName = tokens[1];
+      if (animations.contains(animationName) ||
+          store.hasAnimationDefinition(animationName.sliceView())) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 bmin::String("duplicate animation '") + animationName + "'");
+      }
+      animations[animationName] = true;
+      inAnimation = true;
+      ++result.assetCount;
+    } else if (command == "Sound" || command == "Music") {
+      if (tokens.size() < 3 || tokens[1].empty() || tokens[2].empty()) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 command + " requires a non-empty alias and path");
+        continue;
+      }
+      const bmin::String& alias = tokens[1];
+      const bool duplicate = command == "Sound"
+                                 ? (soundsSeen.contains(alias) ||
+                                    store.hasSound(alias.sliceView()))
+                                 : (musicSeen.contains(alias) ||
+                                    store.hasMusic(alias.sliceView()));
+      if (duplicate) {
+        addIssue(result,
+                 ASSET_ERROR,
+                 lineNumber,
+                 bmin::String("duplicate ") + command + " '" + alias + "'");
+      }
+      if (command == "Sound") {
+        soundsSeen[alias] = true;
+        if (tokens.size() >= 4 && bmin::isDouble(tokens[3])) {
+          const double volume = bmin::parseDouble(tokens[3]);
+          if (volume < 0.0 || volume > 1.0) {
+            addIssue(result,
+                     ASSET_WARNING,
+                     lineNumber,
+                     "sound volume will be clamped to the range 0 through 1");
+          }
+        }
+      } else {
+        musicSeen[alias] = true;
+      }
+      ++result.assetCount;
+    } else if (command == "EndAnim") {
+      addIssue(result,
+               ASSET_ERROR,
+               lineNumber,
+               "EndAnim appeared without an active animation");
+    } else {
+      addIssue(result,
+               ASSET_ERROR,
+               lineNumber,
+               bmin::String("unknown asset command '") + command + "'");
+    }
+  }
+
+  if (inAnimation) {
+    addIssue(result,
+             ASSET_ERROR,
+             lineNumber,
+             bmin::String("animation '") + animationName +
+                 "' is missing EndAnim");
+  }
+  return result;
+}
+
+AssetLoadResult AssetLoader::loadAssetsFromFile(AssetFileType type,
+                                                std::string_view path) {
+  AssetLoadResult result = validateAssetsFromFile(type, path);
+  if (!result) {
+    LOG_LINE(ERROR) << "[sdl2w] " << result << Logger::endl;
+    return result;
+  }
+  try {
+    switch (type) {
+    case DEPRECATED_ASSET_TYPE_SPRITE:
+      loadSpriteAssetsFromFile(path);
+      break;
+    case DEPRECATED_ASSET_TYPE_ANIMATION:
+      loadAnimationAssetsFromFile(path);
+      break;
+    case DEPRECATED_ASSET_TYPE_SOUND:
+      loadSoundAssetsFromFile(path);
+      break;
+    case ASSET_FILE:
+      loadAssetFile(path);
+      break;
+    }
+  } catch (const std::exception& e) {
+    addIssue(result, ASSET_ERROR, 0, bmin::String(e.what()));
+  } catch (const bmin::String& e) {
+    addIssue(result, ASSET_ERROR, 0, e);
+  }
+  return result;
 }
 
 bmin::String loadFileAsString(std::string_view path) {
@@ -765,7 +1066,8 @@ bmin::String loadFileAsString(std::string_view path) {
   std::ifstream file(fullPath.cStr());
 
   if (!file) {
-    LOG_LINE(ERROR) << "[sdl2w] Error opening file: " << pathStr << Logger::endl;
+    LOG_LINE(ERROR) << "[sdl2w] Error opening file: " << pathStr
+                    << Logger::endl;
     THROW_RUNTIME_ERROR(
         bmin::String(FAIL_ERROR_TEXT.data(), FAIL_ERROR_TEXT.size()));
   }

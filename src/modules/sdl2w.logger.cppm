@@ -1,18 +1,18 @@
 module;
 #include "impl_headers.h"
 #include <fstream>
+#include <source_location>
 #include <stdarg.h>
+#include <stdexcept>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <source_location>
-#include <stdexcept>
 #include <string_view>
 
 #if defined(__EMSCRIPTEN__)
+#include <cstdlib>
 #include <emscripten/emscripten.h>
 #include <emscripten/stack.h>
-#include <cstdlib>
 #elif defined(__linux__) || defined(__APPLE__)
 #include <execinfo.h>
 #endif
@@ -27,6 +27,9 @@ export namespace sdl2w {
 enum LogType { DEBUG, INFO, WARN, ERROR };
 
 class Logger {
+  LogType localLogLevel = DEBUG;
+  bool active = true;
+
 public:
   static const bmin::String endl;
   static LogType logLevel;
@@ -34,28 +37,28 @@ public:
   static bool colorEnabled;
   static bool logToFile;
   static std::fstream logFile;
-  static LogType localLogLevel;
-
-  Logger() { localLogLevel = DEBUG; }
-  explicit Logger(LogType level) {
-    localLogLevel = DEBUG;
-    get(level);
-  }
+  Logger() = default;
+  explicit Logger(LogType level) { get(level); }
   Logger(LogType level, std::source_location loc) {
-    localLogLevel = DEBUG;
     get(level, loc.file_name(), static_cast<int>(loc.line()));
   }
+  Logger(const Logger&) = delete;
+  Logger& operator=(const Logger&) = delete;
+  Logger(Logger&& other) noexcept;
+  Logger& operator=(Logger&&) = delete;
   virtual ~Logger();
   bmin::StringStream& get(LogType level = INFO);
   bmin::StringStream& get(LogType level, const char* file, int line);
-  template <typename T>
-  Logger& operator<<(const T& value) {
-    os << value;
+  template <typename T> Logger& operator<<(const T& value) {
+    if (active) {
+      os << value;
+    }
     return *this;
   }
   bmin::StringStream os;
   bmin::String getLabel(LogType type);
   static void setLogToFile(bool logToFile);
+  static void setLogToFile(bool logToFile, std::string_view path);
   static void setLogLevel(LogType level);
 
   int printf(const char* format, ...);
@@ -64,14 +67,19 @@ public:
   [[noreturn]] static void throwRuntimeError(std::string_view msg);
   [[noreturn]] static void
   throwRuntimeError(std::string_view msg, const char* file, int line);
-  [[noreturn]] static void throwRuntimeError(const bmin::String& msg,
-                                             const char* file, int line);
+  [[noreturn]] static void
+  throwRuntimeError(const char* msg, const char* file, int line) {
+    throwRuntimeError(std::string_view(msg ? msg : ""), file, line);
+  }
+  [[noreturn]] static void
+  throwRuntimeError(const bmin::String& msg, const char* file, int line);
 };
 
 inline Logger log(LogType level) { return Logger(level); }
 
 inline Logger
-logAt(LogType level, std::source_location loc = std::source_location::current()) {
+logAt(LogType level,
+      std::source_location loc = std::source_location::current()) {
   return Logger(level, loc);
 }
 
@@ -87,7 +95,7 @@ fail(const bmin::String& msg,
   Logger::throwRuntimeError(msg, loc.file_name(), static_cast<int>(loc.line()));
 }
 
-}
+} // namespace sdl2w
 
 export namespace sdl2w {
 inline const bmin::String& endl = Logger::endl;
@@ -113,20 +121,20 @@ LOG_LINE(sdl2w::LogType level,
 
 export inline const bmin::String& LOG_ENDL = sdl2w::endl;
 
-export [[noreturn]] inline void
-THROW_RUNTIME_ERROR(std::string_view msg,
-                    std::source_location loc = std::source_location::current()) {
+export [[noreturn]] inline void THROW_RUNTIME_ERROR(
+    std::string_view msg,
+    std::source_location loc = std::source_location::current()) {
   sdl2w::fail(msg, loc);
 }
 
-export [[noreturn]] inline void
-THROW_RUNTIME_ERROR(const char* msg,
-                    std::source_location loc = std::source_location::current()) {
+export [[noreturn]] inline void THROW_RUNTIME_ERROR(
+    const char* msg,
+    std::source_location loc = std::source_location::current()) {
   sdl2w::fail(std::string_view(msg), loc);
 }
 
-export [[noreturn]] inline void
-THROW_RUNTIME_ERROR(const bmin::String& msg,
-                    std::source_location loc = std::source_location::current()) {
+export [[noreturn]] inline void THROW_RUNTIME_ERROR(
+    const bmin::String& msg,
+    std::source_location loc = std::source_location::current()) {
   sdl2w::fail(msg, loc);
 }

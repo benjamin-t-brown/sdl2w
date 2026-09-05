@@ -19,6 +19,9 @@ namespace sdl2w {
 enum LogType { DEBUG, INFO, WARN, ERROR };
 
 class Logger {
+  LogType localLogLevel = DEBUG;
+  bool active = true;
+
 public:
   static const bmin::String endl;
   static LogType logLevel;
@@ -26,28 +29,28 @@ public:
   static bool colorEnabled;
   static bool logToFile;
   static std::fstream logFile;
-  static LogType localLogLevel;
-
-  Logger() { localLogLevel = DEBUG; }
-  explicit Logger(LogType level) {
-    localLogLevel = DEBUG;
-    get(level);
-  }
+  Logger() = default;
+  explicit Logger(LogType level) { get(level); }
   Logger(LogType level, std::source_location loc) {
-    localLogLevel = DEBUG;
     get(level, loc.file_name(), static_cast<int>(loc.line()));
   }
+  Logger(const Logger&) = delete;
+  Logger& operator=(const Logger&) = delete;
+  Logger(Logger&& other) noexcept;
+  Logger& operator=(Logger&&) = delete;
   virtual ~Logger();
   bmin::StringStream& get(LogType level = INFO);
   bmin::StringStream& get(LogType level, const char* file, int line);
-  template <typename T>
-  Logger& operator<<(const T& value) {
-    os << value;
+  template <typename T> Logger& operator<<(const T& value) {
+    if (active) {
+      os << value;
+    }
     return *this;
   }
   bmin::StringStream os;
   bmin::String getLabel(LogType type);
   static void setLogToFile(bool logToFile);
+  static void setLogToFile(bool logToFile, std::string_view path);
   static void setLogLevel(LogType level);
 
   int printf(const char* format, ...);
@@ -56,8 +59,12 @@ public:
   [[noreturn]] static void throwRuntimeError(std::string_view msg);
   [[noreturn]] static void
   throwRuntimeError(std::string_view msg, const char* file, int line);
-  [[noreturn]] static void throwRuntimeError(const bmin::String& msg,
-                                             const char* file, int line);
+  [[noreturn]] static void
+  throwRuntimeError(const char* msg, const char* file, int line) {
+    throwRuntimeError(std::string_view(msg ? msg : ""), file, line);
+  }
+  [[noreturn]] static void
+  throwRuntimeError(const bmin::String& msg, const char* file, int line);
 };
 
 } // namespace sdl2w
@@ -67,7 +74,8 @@ namespace sdl2w {
 inline Logger log(LogType level) { return Logger(level); }
 
 inline Logger
-logAt(LogType level, std::source_location loc = std::source_location::current()) {
+logAt(LogType level,
+      std::source_location loc = std::source_location::current()) {
   return Logger(level, loc);
 }
 

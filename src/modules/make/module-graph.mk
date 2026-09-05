@@ -35,7 +35,7 @@ SDL2W_IMPLEMENTATION_MODULES := \
 	sdl2w.init
 
 SDL2W_DEPS_sdl2w.types := sdl2w.defines
-SDL2W_DEPS_sdl2w.events := sdl2w.logger
+SDL2W_DEPS_sdl2w.events := sdl2w.defines sdl2w.logger
 SDL2W_DEPS_sdl2w.animation := sdl2w.types sdl2w.logger
 SDL2W_DEPS_sdl2w.store := \
 	sdl2w.animation sdl2w.defines sdl2w.types sdl2w.logger

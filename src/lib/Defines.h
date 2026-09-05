@@ -21,6 +21,7 @@ typedef struct TTF_Font TTF_Font;
 typedef struct Mix_Music Mix_Music;
 #endif
 typedef struct _SDL_Joystick SDL_Joystick;
+typedef struct _SDL_GameController SDL_GameController;
 
 namespace sdl2w {
 const std::string_view FAIL_ERROR_TEXT{"sdl2w fail"};
@@ -54,5 +55,6 @@ struct SDL_Deleter {
   void operator()(TTF_Font* p) const;
   void operator()(Mix_Music* p) const;
   void operator()(SDL_Joystick* p) const;
+  void operator()(SDL_GameController* p) const;
 };
 } // namespace sdl2w

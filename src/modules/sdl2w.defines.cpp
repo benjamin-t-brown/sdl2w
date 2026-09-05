@@ -50,7 +50,14 @@ void SDL_Deleter::operator()(Mix_Music* p) const {
   }
 }
 void SDL_Deleter::operator()(SDL_Joystick* p) const {
-  (void)p;
+  if (p != nullptr) {
+    SDL_JoystickClose(p);
+  }
+}
+void SDL_Deleter::operator()(SDL_GameController* p) const {
+  if (p != nullptr) {
+    SDL_GameControllerClose(p);
+  }
 }
 
-}
+} // namespace sdl2w

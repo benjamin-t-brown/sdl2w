@@ -67,8 +67,8 @@ void runProgram(int argc, char** argv) {
   bmin::String lastKeyPressed = "";
   window.getEvents().setKeyboardEvent(
       sdl2w::ON_KEY_DOWN, [&](std::string_view key, int button) {
-        sdl2w::log(sdl2w::INFO) << "Keyboard down: " << key << " (" << button
-                                << ")" << sdl2w::endl;
+        sdl2w::log(sdl2w::INFO)
+            << "Keyboard down: " << key << " (" << button << ")" << sdl2w::endl;
         if (key == "Left") {
           kenDirection = 0;
         } else if (key == "Right") {
@@ -90,8 +90,8 @@ void runProgram(int argc, char** argv) {
           window.playSound("test3");
         }
 
-        lastKeyPressed =
-            bmin::String(key.data(), key.size()) + " (" + bmin::toString(button) + ")";
+        lastKeyPressed = bmin::String(key.data(), key.size()) + " (" +
+                         bmin::toString(button) + ")";
       });
 
   auto _loadLoop = [&]() {
@@ -103,19 +103,19 @@ void runProgram(int argc, char** argv) {
     sdl2w::log(sdl2w::INFO) << "Init cb" << sdl2w::endl;
     try {
       bmin::String localFile = sdl2w::loadFileAsString("localFile.txt");
-      sdl2w::log(sdl2w::INFO) << "localFile.txt contents: " << localFile
-                              << sdl2w::endl;
+      sdl2w::log(sdl2w::INFO)
+          << "localFile.txt contents: " << localFile << sdl2w::endl;
       localFile += "a";
       sdl2w::saveFileAsString("localFile.txt", localFile.sliceView());
     } catch (std::exception& e) {
-      sdl2w::log(sdl2w::INFO) << "localFile.txt does not exist, so creating it."
-                              << sdl2w::endl;
+      sdl2w::log(sdl2w::INFO)
+          << "localFile.txt does not exist, so creating it." << sdl2w::endl;
       sdl2w::saveFileAsString("localFile.txt", "Hello World!");
     }
   };
 
   auto _mainLoop = [&]() {
-    const int dt = window.getDeltaTime();
+    const double dt = window.getDeltaTime();
 
     // update
     kenWalkAnim.update(dt);

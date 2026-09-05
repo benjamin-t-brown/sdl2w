@@ -20,10 +20,7 @@ drawText(TRANSLATE("Example Text")), {});
 
 namespace sdl2w {
 
-#define TRANSLATE(text)                                                        \
-  (sdl2w::L10n::isEnabled()                                                    \
-       ? sdl2w::L10n::trans(sdl2w::L10n::hash(text)).cStr()                    \
-       : (text))
+#define TRANSLATE(text) sdl2w::L10n::translate(text)
 #define DISABLE_TRANSLATIONS "default"
 
 class L10n {
@@ -31,15 +28,17 @@ class L10n {
   static bmin::Map<bmin::String, bmin::Map<size_t, bmin::String>> locStrings;
   static bmin::DynArray<bmin::String> supportedLanguages;
   static bool enabledFlag;
+  static const bmin::String& transRef(size_t id);
 
 public:
   static void init(std::initializer_list<std::string_view> langs = {"en"});
   static void loadLanguage(std::string_view lang, std::string_view langText);
-  static void setLanguage(std::string_view lang);
+  static bool setLanguage(std::string_view lang);
   static void setEnabled(bool enabled);
   static bool isEnabled();
   static const bmin::Map<size_t, bmin::String>& getStrings();
   static bmin::String trans(size_t id);
+  static const char* translate(const char* text);
   static size_t hash(std::string_view str);
 };
 

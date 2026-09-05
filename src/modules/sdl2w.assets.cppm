@@ -22,7 +22,6 @@ module;
 #include <SDL2/SDL_ttf.h>
 #endif
 
-
 export module sdl2w.assets;
 export import sdl2w.draw;
 export import sdl2w.store;
@@ -43,6 +42,26 @@ enum AssetFileType {
 enum SoundFileMode {
   SOUND_FILE_WAV = 0,
   SOUND_FILE_OGG = 1,
+};
+
+enum AssetIssueSeverity {
+  ASSET_WARNING,
+  ASSET_ERROR,
+};
+
+struct AssetIssue {
+  AssetIssueSeverity severity = ASSET_ERROR;
+  size_t line = 0;
+  bmin::String message;
+};
+
+struct AssetLoadResult {
+  bool success = true;
+  size_t assetCount = 0;
+  bmin::DynArray<AssetIssue> issues;
+
+  explicit operator bool() const { return success; }
+  bmin::String toString() const;
 };
 
 class AssetLoader {
@@ -87,8 +106,13 @@ public:
   void setSoundFileMode(SoundFileMode mode) { soundFileMode = mode; }
   SoundFileMode getSoundFileMode() const { return soundFileMode; }
 
-  void loadAssetsFromFile(AssetFileType type, std::string_view path);
+  AssetLoadResult validateAssetsFromFile(AssetFileType type,
+                                         std::string_view path) const;
+  AssetLoadResult loadAssetsFromFile(AssetFileType type, std::string_view path);
 };
+
+bmin::StringStream& operator<<(bmin::StringStream& out,
+                               const AssetLoadResult& result);
 
 bmin::String slice(std::string_view str, int start, int end);
 bmin::String trim(std::string_view str);
@@ -98,4 +122,4 @@ void split(std::string_view str,
 bmin::String loadFileAsString(std::string_view path);
 void saveFileAsString(std::string_view path, std::string_view content);
 
-}
+} // namespace sdl2w

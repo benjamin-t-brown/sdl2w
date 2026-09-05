@@ -1,12 +1,9 @@
 #pragma once
 
 #include <string_view>
-namespace sdl2w {
-class Window;
-}
-
 namespace emshelpers {
-void setEmscriptenWindow(sdl2w::Window* window);
+void setEmscriptenWindow(void* window);
+void notifyTargetWindowSize(int width, int height);
 bool isEmscriptenEnv();
 void notifyGameStarted();
 void notifyGameReady();

@@ -30,6 +30,11 @@ static bmin::String toKey(std::string_view sv) {
   return bmin::String(sv.data(), sv.size());
 }
 
+static bmin::String fontKey(std::string_view name, int size, bool outline) {
+  return bmin::String(name.data(), name.size()) + ":" + bmin::toString(size) +
+         (outline ? ":outline" : ":regular");
+}
+
 void SDL_Deleter::operator()(SDL_Window* p) const {
   if (p != nullptr) {
     SDL_DestroyWindow(p);
@@ -66,70 +71,110 @@ void SDL_Deleter::operator()(Mix_Music* p) const {
   }
 }
 void SDL_Deleter::operator()(SDL_Joystick* p) const {
-  (void)p;
+  if (p != nullptr) {
+    SDL_JoystickClose(p);
+  }
+}
+void SDL_Deleter::operator()(SDL_GameController* p) const {
+  if (p != nullptr) {
+    SDL_GameControllerClose(p);
+  }
+}
+
+void Store::storeTexture(std::string_view name, TexturePtr tex) {
+  if (!tex) {
+    THROW_RUNTIME_ERROR("[sdl2w] Cannot store a null texture.");
+  }
+  const bmin::String nameStr = toKey(name);
+  if (textures.contains(nameStr)) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Texture already exists: '") +
+                        nameStr + "'.");
+  }
+  textures.insert(nameStr, std::move(tex));
 }
 
 void Store::storeTexture(std::string_view name, SDL_Texture* tex) {
-  const bmin::String nameStr = toKey(name);
-  if (textures.contains(nameStr)) {
-    LOG(WARN) << "[sdl2w] WARNING Texture with name '" << name
-              << "' already exists. '" << name << "'" << Logger::endl;
+  storeTexture(name, TexturePtr(tex));
+}
+
+void Store::storeDynamicTexture(std::string_view name, TexturePtr tex) {
+  if (!tex) {
+    THROW_RUNTIME_ERROR("[sdl2w] Cannot store a null dynamic texture.");
   }
-  textures[nameStr] = bmin::UniquePtr<SDL_Texture, SDL_Deleter>(tex);
+  const bmin::String nameStr = toKey(name);
+  if (dynamicTextures.contains(nameStr)) {
+    THROW_RUNTIME_ERROR(
+        bmin::String("[sdl2w] Dynamic texture already exists: '") + nameStr +
+        "'.");
+  }
+  dynamicTextures.insert(nameStr, std::move(tex));
 }
 
 void Store::storeDynamicTexture(std::string_view name, SDL_Texture* tex) {
-  dynamicTextures[toKey(name)] =
-      bmin::UniquePtr<SDL_Texture, SDL_Deleter>(tex);
+  storeDynamicTexture(name, TexturePtr(tex));
+}
+
+void Store::storeSprite(std::string_view name, Sprite sprite) {
+  const bmin::String nameStr = toKey(name);
+  if (sprites.contains(nameStr)) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Sprite already exists: '") +
+                        nameStr + "'.");
+  }
+  sprites.insert(nameStr, bmin::makeUnique<Sprite>(std::move(sprite)));
 }
 
 void Store::storeSprite(std::string_view name, Sprite* sprite) {
+  if (sprite == nullptr) {
+    THROW_RUNTIME_ERROR("[sdl2w] Cannot store a null sprite.");
+  }
+  bmin::UniquePtr<Sprite> owned(sprite);
   const bmin::String nameStr = toKey(name);
   if (sprites.contains(nameStr)) {
-    LOG(WARN) << "[sdl2w] WARNING Sprite with name '" << name
-              << "' already exists. '" << name << "'" << Logger::endl;
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Sprite already exists: '") +
+                        nameStr + "'.");
   }
-  sprites[nameStr] = bmin::UniquePtr<Sprite>(sprite);
+  sprites.insert(nameStr, std::move(owned));
 }
 
 AnimationDefinition& Store::storeAnimationDefinition(std::string_view name,
                                                      const bool loop) {
   const bmin::String nameStr = toKey(name);
   if (!anims.contains(nameStr)) {
-    anims[nameStr] = bmin::makeUnique<AnimationDefinition>(name, loop);
+    anims.insert(nameStr, bmin::makeUnique<AnimationDefinition>(name, loop));
   } else {
-    LOG(WARN) << "[sdl2w] WARNING Cannot store new anim, it already exists: '"
-              << nameStr << "'" << Logger::endl;
+    THROW_RUNTIME_ERROR(
+        bmin::String("[sdl2w] Animation definition already exists: '") +
+        nameStr + "'.");
   }
   return *anims[nameStr];
 }
 
 void Store::loadAndStoreFont(std::string_view name, std::string_view path) {
+  const bmin::String nameStr = toKey(name);
   const bmin::String pathStr(path.data(), path.size());
-  static const int sizes[] = {TEXT_SIZE_10, TEXT_SIZE_12, TEXT_SIZE_14,
-                              TEXT_SIZE_15, TEXT_SIZE_16, TEXT_SIZE_18,
-                              TEXT_SIZE_20, TEXT_SIZE_22, TEXT_SIZE_24,
-                              TEXT_SIZE_28, TEXT_SIZE_32, TEXT_SIZE_36,
-                              TEXT_SIZE_48, TEXT_SIZE_60, TEXT_SIZE_72};
+  if (fontPaths.contains(nameStr)) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Font already exists: '") +
+                        nameStr + "'.");
+  }
 
-  for (const int size : sizes) {
-    bmin::String key = toKey(name);
-    key.append(bmin::toString(size));
-    fonts[key] = bmin::UniquePtr<TTF_Font, SDL_Deleter>(
-        TTF_OpenFont(pathStr.cStr(), size));
+  bmin::UniquePtr<TTF_Font, SDL_Deleter> defaultFont(
+      TTF_OpenFont(pathStr.cStr(), TEXT_SIZE_16));
+  if (!defaultFont) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Failed to load font '") +
+                        pathStr + "': " + TTF_GetError());
+  }
+  fontPaths.insert(nameStr, pathStr);
+  fonts.insert(fontKey(name, TEXT_SIZE_16, false), std::move(defaultFont));
+}
 
-    if (!fonts[key]) {
-      const bmin::String error(SDL_GetError());
-      LOG(ERROR) << "[sdl2w] ERROR Failed to load font '" << pathStr
-                 << "': reason= " << error << LOG_ENDL;
-      throw bmin::String("[sdl2w] ERROR Failed to load font '") + pathStr +
-            "': reason= " + error;
+void Store::preloadFontSizes(std::string_view name,
+                             std::initializer_list<TextSize> sizes,
+                             bool includeOutlines) {
+  for (TextSize size : sizes) {
+    getFont(name, static_cast<int>(size), false);
+    if (includeOutlines) {
+      getFont(name, static_cast<int>(size), true);
     }
-
-    bmin::String outlineKey = key + "o";
-    fonts[outlineKey] = bmin::UniquePtr<TTF_Font, SDL_Deleter>(
-        TTF_OpenFont(pathStr.cStr(), size));
-    TTF_SetFontOutline(fonts[outlineKey].get(), 1);
   }
 }
 
@@ -137,11 +182,14 @@ void Store::createFontAlias(std::string_view aliasName,
                             std::string_view loadedFontName) {
   const bmin::String aliasStr = toKey(aliasName);
   if (fontAliases.contains(aliasStr)) {
-    LOG(WARN) << "[sdl2w] WARNING Font alias with name '" << aliasName
-              << "' already exists to '" << loadedFontName << "'"
-              << Logger::endl;
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Font alias already exists: '") +
+                        aliasStr + "'.");
   }
-  fontAliases[aliasStr] = toKey(loadedFontName);
+  if (!fontPaths.contains(loadedFontName)) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Cannot alias unknown font '") +
+                        toKey(loadedFontName) + "'.");
+  }
+  fontAliases.insert(aliasStr, toKey(loadedFontName));
 }
 
 void Store::storeSound(std::string_view name,
@@ -150,8 +198,8 @@ void Store::storeSound(std::string_view name,
   const bmin::String nameStr = toKey(name);
   const bmin::String pathStr(path.data(), path.size());
   if (sounds.contains(nameStr)) {
-    LOG(WARN) << "[sdl2w] WARNING Sound with name '" << name
-              << "' already exists. '" << name << "'" << Logger::endl;
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Sound already exists: '") +
+                        nameStr + "'.");
   }
 
   float clampedVolume = volume;
@@ -174,23 +222,23 @@ void Store::storeSound(std::string_view name,
     THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Failed to load sound '") +
                         pathStr + "': reason= " + Mix_GetError());
   }
-  sounds[nameStr] = std::move(stored);
+  sounds.insert(nameStr, std::move(stored));
 }
 
 void Store::storeMusic(std::string_view name, std::string_view path) {
   const bmin::String nameStr = toKey(name);
   const bmin::String pathStr(path.data(), path.size());
   if (musics.contains(nameStr)) {
-    LOG(WARN) << "[sdl2w] WARNING Music with name '" << name
-              << "' already exists. '" << name << "'" << Logger::endl;
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Music already exists: '") +
+                        nameStr + "'.");
   }
 
-  musics[nameStr] = bmin::UniquePtr<Mix_Music, SDL_Deleter>(
-      Mix_LoadMUS(pathStr.cStr()));
-  if (!musics[nameStr]) {
+  bmin::UniquePtr<Mix_Music, SDL_Deleter> music(Mix_LoadMUS(pathStr.cStr()));
+  if (!music) {
     THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Failed to load music '") +
                         pathStr + "': reason= " + Mix_GetError());
   }
+  musics.insert(nameStr, std::move(music));
 }
 
 SDL_Texture* Store::getTexture(std::string_view name) {
@@ -235,25 +283,45 @@ AnimationDefinition& Store::getAnimationDefinition(std::string_view name) {
   }
   const bmin::String nameStr = toKey(name);
   THROW_RUNTIME_ERROR(
-      bmin::String("[sdl2w] ERROR Cannot get AnimationDefinition '") +
-      nameStr + "' because it has not been loaded.");
+      bmin::String("[sdl2w] ERROR Cannot get AnimationDefinition '") + nameStr +
+      "' because it has not been loaded.");
 }
 
 TTF_Font*
 Store::getFont(std::string_view name, const int sz, const bool isOutline) {
+  if (sz <= 0) {
+    THROW_RUNTIME_ERROR("[sdl2w] Font size must be positive.");
+  }
   bmin::String innerName(name.data(), name.size());
   auto aliasIt = fontAliases.find(innerName);
   if (aliasIt != fontAliases.end()) {
     innerName = (*aliasIt).value;
   }
 
-  bmin::String key = innerName + bmin::toString(sz) + (isOutline ? "o" : "");
+  const bmin::String key = fontKey(innerName.sliceView(), sz, isOutline);
   auto it = fonts.find(key);
   if (it != fonts.end()) {
     return (*it).value.get();
   }
-  THROW_RUNTIME_ERROR(bmin::String("[sdl2w] ERROR Cannot get Font '") + key +
-                      "' because it has not been created.");
+
+  auto pathIt = fontPaths.find(innerName);
+  if (pathIt == fontPaths.end()) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Cannot get unknown font '") +
+                        innerName + "'.");
+  }
+  bmin::UniquePtr<TTF_Font, SDL_Deleter> font(
+      TTF_OpenFont((*pathIt).value.cStr(), sz));
+  if (!font) {
+    THROW_RUNTIME_ERROR(bmin::String("[sdl2w] Failed to load font '") +
+                        innerName + "' at size " + bmin::toString(sz) + ": " +
+                        TTF_GetError());
+  }
+  if (isOutline) {
+    TTF_SetFontOutline(font.get(), 1);
+  }
+  TTF_Font* result = font.get();
+  fonts.insert(key, std::move(font));
+  return result;
 }
 
 Mix_Chunk* Store::getSound(std::string_view name) {
@@ -297,8 +365,41 @@ Animation Store::createAnimation(std::string_view name, bool flipped) {
   return anim;
 }
 
-bool Store::hasDynamicTexture(std::string_view name) {
+bool Store::hasTexture(std::string_view name) const {
+  return textures.contains(name);
+}
+
+bool Store::hasDynamicTexture(std::string_view name) const {
   return dynamicTextures.contains(name);
+}
+
+bool Store::hasSprite(std::string_view name) const {
+  return sprites.contains(name);
+}
+
+bool Store::hasAnimationDefinition(std::string_view name) const {
+  return anims.contains(name);
+}
+
+bool Store::hasFont(std::string_view name) const {
+  return fontPaths.contains(name) || fontAliases.contains(name);
+}
+
+bool Store::hasFont(std::string_view name, int size, bool isOutline) const {
+  bmin::String innerName(name.data(), name.size());
+  auto aliasIt = fontAliases.find(innerName);
+  if (aliasIt != fontAliases.end()) {
+    innerName = (*aliasIt).value;
+  }
+  return fonts.contains(fontKey(innerName.sliceView(), size, isOutline));
+}
+
+bool Store::hasSound(std::string_view name) const {
+  return sounds.contains(name);
+}
+
+bool Store::hasMusic(std::string_view name) const {
+  return musics.contains(name);
 }
 
 void Store::logAllSprites() {
@@ -306,7 +407,8 @@ void Store::logAllSprites() {
   for (auto it = sprites.begin(); it != sprites.end(); ++it) {
     keys.pushBack((*it).key);
   }
-  std::sort(keys.begin(), keys.end(),
+  std::sort(keys.begin(),
+            keys.end(),
             [](const bmin::String& a, const bmin::String& b) { return a < b; });
 
   Logger().get(INFO) << "[sdl2w] All sprites:" << Logger::endl;
@@ -320,7 +422,8 @@ void Store::logAllAnimationDefinitions() {
   for (auto it = anims.begin(); it != anims.end(); ++it) {
     keys.pushBack((*it).key);
   }
-  std::sort(keys.begin(), keys.end(),
+  std::sort(keys.begin(),
+            keys.end(),
             [](const bmin::String& a, const bmin::String& b) { return a < b; });
 
   Logger().get(INFO) << "[sdl2w] All animation definitions:" << Logger::endl;
@@ -337,5 +440,7 @@ void Store::clear() {
   sounds.clear();
   musics.clear();
   fonts.clear();
+  fontAliases.clear();
+  fontPaths.clear();
 }
 } // namespace sdl2w

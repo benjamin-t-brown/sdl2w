@@ -1,14 +1,14 @@
 #include "Logger.h"
 #include <stdarg.h>
 #include <stdexcept>
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #if defined(__EMSCRIPTEN__)
+#include <cstdlib>
 #include <emscripten/emscripten.h>
 #include <emscripten/stack.h>
-#include <cstdlib>
 #elif defined(__linux__) || defined(__APPLE__)
 #include <execinfo.h>
 #endif
@@ -33,26 +33,39 @@ static bmin::String removeANSIEscapeCodes(std::string_view str) {
 
 const bmin::String Logger::endl = bmin::String("\n");
 LogType Logger::logLevel = DEBUG;
-LogType Logger::localLogLevel = DEBUG;
 bool Logger::disabled = false;
 bool Logger::colorEnabled = true;
 bool Logger::logToFile = false;
 std::fstream Logger::logFile;
 
 bmin::StringStream& Logger::get(LogType level) {
-  localLogLevel = logLevel;
+  localLogLevel = level;
+  active = !Logger::disabled && level >= Logger::logLevel;
+  if (!active) {
+    return os;
+  }
   const bmin::String label = getLabel(level);
   os << label;
   return os;
 }
 bmin::StringStream& Logger::get(LogType level, const char* file, int line) {
-  localLogLevel = logLevel;
+  localLogLevel = level;
+  active = !Logger::disabled && level >= Logger::logLevel;
+  if (!active) {
+    return os;
+  }
   const bmin::String label = getLabel(level);
   const char* colorPre = Logger::colorEnabled ? "\033[90m" : "";
   const char* colorPost = Logger::colorEnabled ? "\033[0m" : "";
   os << label << colorPre << "<" << file << ":" << line << ">" << colorPost
      << " ";
   return os;
+}
+Logger::Logger(Logger&& other) noexcept
+    : localLogLevel(other.localLogLevel),
+      active(other.active),
+      os(static_cast<bmin::StringStream&&>(other.os)) {
+  other.active = false;
 }
 bmin::String Logger::getLabel(LogType type) {
   bmin::String label;
@@ -85,7 +98,7 @@ bmin::String Logger::getLabel(LogType type) {
   return label;
 }
 Logger::~Logger() {
-  if (Logger::logLevel > localLogLevel) {
+  if (!active || Logger::logLevel > localLogLevel) {
     return;
   }
   if (!Logger::disabled) {
@@ -100,18 +113,26 @@ Logger::~Logger() {
 }
 
 void Logger::setLogToFile(bool logToFileA) {
-  if (logToFileA) {
-    Logger::logFile.open("output.log", std::ios::out | std::ios::trunc);
-  } else if (!logToFileA && Logger::logFile.is_open()) {
+  setLogToFile(logToFileA, "output.log");
+}
+
+void Logger::setLogToFile(bool logToFileA, std::string_view path) {
+  if (Logger::logFile.is_open()) {
     Logger::logFile.close();
   }
-  Logger::logToFile = logToFileA;
+  if (logToFileA) {
+    const bmin::String pathStr(path.data(), path.size());
+    Logger::logFile.open(pathStr.cStr(), std::ios::out | std::ios::trunc);
+    Logger::logToFile = Logger::logFile.is_open();
+    return;
+  }
+  Logger::logToFile = false;
 }
 
 void Logger::setLogLevel(LogType level) { Logger::logLevel = level; }
 
 int Logger::printf(const char* c, ...) {
-  if (Logger::disabled) {
+  if (!active || Logger::disabled) {
     return 0;
   }
   if (Logger::logLevel > localLogLevel) {
@@ -198,8 +219,8 @@ bmin::String Logger::getStackTrace() {
   throwRuntimeError(msg, nullptr, 0);
 }
 
-[[noreturn]] void Logger::throwRuntimeError(std::string_view msg,
-                                            const char* file, int line) {
+[[noreturn]] void
+Logger::throwRuntimeError(std::string_view msg, const char* file, int line) {
   const bmin::String msgStr(msg.data(), msg.size());
   const bmin::String trace = getStackTrace();
   if (file != nullptr) {
@@ -223,8 +244,8 @@ bmin::String Logger::getStackTrace() {
   throw std::runtime_error(exceptionMsg.cStr());
 }
 
-[[noreturn]] void Logger::throwRuntimeError(const bmin::String& msg,
-                                            const char* file, int line) {
+[[noreturn]] void
+Logger::throwRuntimeError(const bmin::String& msg, const char* file, int line) {
   throwRuntimeError(msg.sliceView(), file, line);
 }
 } // namespace sdl2w
