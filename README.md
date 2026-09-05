@@ -87,7 +87,8 @@ modules - .cppm interfaces, .cpp implementation units, macros, and make helpers
 
 # IDE setup (Cursor / VS Code)
 
-For accurate go-to-definition, diagnostics, and refactoring, point your editor at a
+For accurate go-to-definition, diagnostics, and refactoring across both the classic
+and module APIs, point your editor at a
 [`compile_commands.json`](https://clang.llvm.org/docs/JSONCompilationDatabase.html)
 at the repo root. That file is **gitignored** — generate it locally after dependencies
 are in place.
@@ -97,15 +98,14 @@ sdl2w modules live under `src/modules/`; the parallel classic sources live under
 `src/bmin/`. Run a native build
 first (or let the script below fetch bmin for you), then generate compile commands.
 
-From an **MSYS2 UCRT64** shell (same environment used for `make native`):
+Install the official **clangd** extension in VS Code or Cursor, then generate the
+database:
 
 ```bash
-# 1. First-time setup: clone bmin, build libs, populate src/bmin/modules/
-cd src
-make native
-cd ..
+# First-time setup: clone bmin, build both APIs, populate src/bmin/modules/
+make -C src native
 
-# 2. Generate compile_commands.json at the repo root
+# Generate compile_commands.json at the repo root
 ./compile-commands.sh
 ```
 
@@ -114,8 +114,21 @@ to verify the project builds before you open the IDE. If you only need IntelliSe
 have not built yet, `./compile-commands.sh` alone is enough to pull in bmin and write
 the database.
 
-Then open the **repository root** in Cursor or VS Code. Tools such as **clangd** and the
-Microsoft C/C++ extension read `compile_commands.json` automatically.
+Then open the **repository root** in Cursor or VS Code. The workspace recommends
+clangd and disables Microsoft C/C++ IntelliSense so only one language server owns
+diagnostics and semantic highlighting.
+
+On macOS, install upstream LLVM (`brew install llvm`). The generator prefers its
+`clang++` over Apple Clang because named-module support in Apple clangd may lag the
+upstream release. Set the editor's machine-local `clangd.path` to the result of:
+
+```bash
+echo "$(brew --prefix llvm)/bin/clangd"
+```
+
+For this Intel Homebrew layout that is `/usr/local/opt/llvm/bin/clangd`; on Apple
+Silicon it is normally `/opt/homebrew/opt/llvm/bin/clangd`. Keep this as a user or
+machine setting rather than committing one platform's absolute path.
 
 Regenerate after changing Makefiles or adding/removing source files:
 
@@ -123,9 +136,10 @@ Regenerate after changing Makefiles or adding/removing source files:
 ./compile-commands.sh
 ```
 
-The module database covers interfaces, module implementation units, direct-import
-probes, bundled bmin modules, and the module form of `example/main.cpp`. clangd needs `--experimental-modules-support`
-(already in `.vscode/settings.json`). Restart clangd after regenerating.
+The database covers classic SDL2W sources, module interfaces and implementation
+units, direct-import probes, bundled bmin modules, tools, and the module form of
+`example/main.cpp`. clangd needs `--experimental-modules-support` (already in
+`.vscode/settings.json`). Restart clangd after regenerating.
 
 On Windows, use the MSYS2 shell so paths and `g++` match the build:
 
@@ -137,6 +151,13 @@ Optional: set `CXX` before running the script if `g++` is not on your PATH:
 
 ```bash
 CXX=/ucrt64/bin/g++.exe ./compile-commands.sh
+```
+
+If you override the Clang driver used by the database, use `CLANGXX` and add that
+exact executable to clangd's `--query-driver` allowlist:
+
+```bash
+CLANGXX=/path/to/clang++ ./compile-commands.sh
 ```
 
 # Tools

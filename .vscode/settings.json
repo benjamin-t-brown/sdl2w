@@ -140,7 +140,7 @@
   "C_Cpp.intelliSenseEngine": "disabled",
   "clangd.arguments": [
     "--experimental-modules-support",
-    "--query-driver=C:/msys64/ucrt64/bin/clang++.exe,C:/msys64/ucrt64/bin/g++.exe,/ucrt64/bin/clang++.exe,/ucrt64/bin/g++.exe",
+    "--query-driver=C:/msys64/ucrt64/bin/clang++.exe,C:/msys64/ucrt64/bin/g++.exe,/ucrt64/bin/clang++.exe,/ucrt64/bin/g++.exe,/opt/homebrew/opt/llvm/bin/clang++,/usr/local/opt/llvm/bin/clang++,/usr/bin/clang++",
     "--compile-commands-dir=${workspaceFolder}",
     "--background-index",
     "--log=verbose"

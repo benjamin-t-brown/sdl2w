@@ -17,8 +17,6 @@
 import sdl2w;
 import bmin.string_interop;
 
-#include "macros.h"
-
 using namespace sdl2w;
 
 static std::string toStd(const bmin::String& s) {
@@ -381,7 +379,7 @@ getSpriteNamesForPicture(AssetLoader& assetLoader,
   }
 
   if (pictureAlias.empty()) {
-    LOG(INFO) << "No picture alias found for selected path: " << picturePath
+    LOG(::INFO) << "No picture alias found for selected path: " << picturePath
               << LOG_ENDL;
     return spriteNames;
   }
@@ -551,7 +549,7 @@ void runProgram(int argc,
             assetList.focusValue = state.selectedSoundName;
           });
           reloadButton.handleMousedown(x, y, [&](const std::string&) {
-            LOG(INFO) << "Reloading assets..." << LOG_ENDL;
+            LOG(::INFO) << "Reloading assets..." << LOG_ENDL;
             reloadAssets(assetLoader, store, assetLoadConfig);
             reloadAssetBrowserData();
             notifMessage = "Assets reloaded!";
@@ -615,7 +613,7 @@ void runProgram(int argc,
             }
           });
           reloadButton.handleMousedown(x, y, [&](const std::string&) {
-            LOG(INFO) << "Reloading assets..." << LOG_ENDL;
+            LOG(::INFO) << "Reloading assets..." << LOG_ENDL;
             reloadAssets(assetLoader, store, assetLoadConfig);
             reloadAssetBrowserData();
             state.selectedAnimNames.clear();
@@ -639,7 +637,7 @@ void runProgram(int argc,
                     store.createAnimation(
                         bmin::toStringView(state.selectedAnim.value().name));
               } catch (const std::exception& e) {
-                LOG(WARN) << "Resetting animation which was not found: "
+                LOG(::WARN) << "Resetting animation which was not found: "
                           << e.what() << LOG_ENDL;
                 state.selectedAnim.reset();
               }
@@ -648,7 +646,7 @@ void runProgram(int argc,
               try {
                 store.getSprite(state.selectedSpriteName);
               } catch (const std::exception& e) {
-                LOG(WARN) << "Resetting sprite which was not found: "
+                LOG(::WARN) << "Resetting sprite which was not found: "
                           << e.what() << LOG_ENDL;
                 state.selectedSpriteName.clear();
               }
@@ -679,7 +677,7 @@ void runProgram(int argc,
             if (it != state.selectedSpriteNames.end()) {
               spriteList.focusValue = str;
               state.selectedSpriteName = str;
-              LOG(INFO) << "Selected sprite: " << str << LOG_ENDL;
+              LOG(::INFO) << "Selected sprite: " << str << LOG_ENDL;
             }
           });
         }
@@ -797,7 +795,7 @@ void runProgram(int argc,
 }
 
 int main(int argc, char** argv) {
-  LOG(INFO) << "Start program" << LOG_ENDL;
+  LOG(::INFO) << "Start program" << LOG_ENDL;
 
   std::string assetsDirPathStr;
   AssetLoadConfig assetLoadConfig;
@@ -908,7 +906,7 @@ int main(int argc, char** argv) {
   runProgram(argc, argv, assetsDirPathStr, assetLoadConfig);
 
   sdl2w::Window::unInit();
-  LOG(INFO) << "End program" << LOG_ENDL;
+  LOG(::INFO) << "End program" << LOG_ENDL;
 
   return 0;
 }
