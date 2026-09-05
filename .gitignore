@@ -1,5 +1,11 @@
 sdl2w/
 bmin/
+/build/
+/out/
+/target/
+/web/.build/
+/example/SDL2W_EXAMPLE
+/example/SDL2W_EXAMPLE_HEADERS
 src/deps/
 .cache
 *.o

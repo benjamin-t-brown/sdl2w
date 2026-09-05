@@ -82,7 +82,7 @@ The build command outputs a folder `sdl2w` in the repo which contains
 ```
 include - classic SDL2W and bmin headers
 lib     - both SDL2W archives and both matching bmin archives
-modules - .cppm interfaces, .cpp implementation units, macros, and make helpers
+modules - .cppm interfaces, .cpp implementation units, and make helpers
 ```
 
 # IDE setup (Cursor / VS Code)
